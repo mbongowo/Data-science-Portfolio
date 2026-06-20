@@ -170,19 +170,36 @@ dependency. After a deploy succeeds, put the public URL at the top of
 
 ### Streamlit Community Cloud
 
-1. Push this repository to GitHub.
-2. In `requirements.txt`, uncomment the `eo-monitor` git line so the host
-   installs the index code:
+The repository is set up so this is mostly clicking through the deploy dialog.
+`eo-monitor` is installed straight from the public repo, so there is no separate
+step to publish it.
 
-   ```
-   eo-monitor @ git+https://github.com/JosephMbuh/eo-monitor.git
-   ```
+1. Push this repository to GitHub (already done for the portfolio).
+2. At <https://share.streamlit.io>, sign in with GitHub and choose **Create app
+   -> Deploy a public app from GitHub**.
+3. Fill in the dialog:
+   - Repository: `mbongowo/Data-science-Portfolio`
+   - Branch: `main`
+   - Main file path: `eo-explorer-app/app/main.py`
+4. Open **Advanced settings** and set **Python version** to `3.12`. This matters:
+   `eo-monitor` requires Python below 3.13, so the default may fail to install.
+5. Click **Deploy**. Cloud finds `eo-explorer-app/app/requirements.txt` (it
+   searches the entrypoint directory first), installs the dependencies including
+   `eo-monitor` from git, and reads `.streamlit/config.toml`. The first build is
+   slow because of the geospatial wheels; later builds reuse the cache.
+6. When the app is live, copy the URL into the top of `README.md` and replace the
+   screenshot placeholder with a real screenshot.
 
-3. At <https://share.streamlit.io>, create a new app, point it at the repo and
-   branch, and set the main file path to `app/main.py`.
-4. Deploy. The platform reads `requirements.txt` and `.streamlit/config.toml`
-   automatically. The first build is slow because of the GDAL-backed packages;
-   later builds reuse the cache.
+If the build fails while compiling a geospatial package, add a file named
+`packages.txt` at the **repository root** (Cloud only reads it there) with:
+
+```
+gdal-bin
+libgdal-dev
+```
+
+then redeploy. The pip wheels for rasterio and pyproj usually make this
+unnecessary.
 
 ### Hugging Face Spaces
 

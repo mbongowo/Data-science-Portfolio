@@ -18,6 +18,16 @@ AOI bbox + date + index so repeated requests are fast.
 
 from __future__ import annotations
 
+# When a host runs this file directly (Streamlit Community Cloud runs
+# app/main.py), only this file's directory is on sys.path, so the `app` package
+# is not importable. Put the project root (the parent of app/) on the path.
+import sys as _sys
+from pathlib import Path as _Path
+
+_project_root = str(_Path(__file__).resolve().parent.parent)
+if _project_root not in _sys.path:
+    _sys.path.insert(0, _project_root)
+
 import datetime as _dt
 
 import streamlit as st
