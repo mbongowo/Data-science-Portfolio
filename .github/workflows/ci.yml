@@ -40,6 +40,8 @@ jobs:
 
       - name: Test
         working-directory: ${{ matrix.project }}
+        # Most projects use a src/ layout; eo-explorer-app keeps its package
+        # at the project root (app/). Put both on the path.
         env:
-          PYTHONPATH: src
+          PYTHONPATH: src:.
         run: pytest tests -q
