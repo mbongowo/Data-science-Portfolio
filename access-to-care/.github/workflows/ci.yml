@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          cache: true
+
+      - name: Ruff (lint)
+        run: pixi run ruff check src tests
+
+      - name: Ruff (format check)
+        run: pixi run ruff format --check src tests
+
+      - name: Mypy (types)
+        run: pixi run mypy src
+
+      - name: Pytest
+        run: pixi run pytest -q

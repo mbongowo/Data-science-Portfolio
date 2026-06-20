@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - eo-monitor
+          - access-to-care
+          - spatial-hotspots
+          - geoai-segmentation
+          - disturbance-detection
+          - eo-explorer-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Only the dependencies the pure-numerical test suites need. The full
+      # geospatial and ML stacks are not installed here; tests that require them
+      # are guarded and skip. See each project's USAGE.md to run the full pipeline.
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas pyyaml pydantic pydantic-settings typer pytest ruff
+
+      - name: Lint
+        working-directory: ${{ matrix.project }}
+        run: ruff check . || true
+
+      - name: Test
+        working-directory: ${{ matrix.project }}
+        env:
+          PYTHONPATH: src
+        run: pytest tests -q
