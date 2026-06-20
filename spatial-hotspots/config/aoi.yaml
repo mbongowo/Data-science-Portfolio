@@ -1,0 +1,63 @@
+# Area-of-interest and analysis configuration for spatial-hotspots.
+# Everything that changes "what" is analysed lives here; the code reads it.
+
+# --------------------------------------------------------------------------- #
+# Study area (areal units)
+# --------------------------------------------------------------------------- #
+aoi:
+  # Primary path: USDA NASS county crop yield joined to TIGER county polygons.
+  name: "iowa_corn_yield_2023"
+  description: >
+    County-level corn (grain) yield across Iowa for the 2023 crop year.
+    Hypothesis: counties with high yield cluster spatially (soil/climate
+    gradients), so we expect significant positive global autocorrelation and
+    coherent High-High / Low-Low local clusters.
+  state_fips: "19"          # Iowa (used to subset TIGER counties)
+  crs: "EPSG:5070"          # CONUS Albers Equal Area; metres, area-correct
+
+# --------------------------------------------------------------------------- #
+# Variable of interest
+# --------------------------------------------------------------------------- #
+variable:
+  source: "usda_nass"       # one of: usda_nass | landsat_st
+  # USDA NASS QuickStats query parameters
+  nass:
+    commodity_desc: "CORN"
+    statisticcat_desc: "YIELD"
+    unit_desc: "BU / ACRE"
+    agg_level_desc: "COUNTY"
+    year: "2023"
+    state_alpha: "IA"
+  # Column produced by the loader and analysed downstream
+  value_column: "yield_bu_acre"
+
+# --------------------------------------------------------------------------- #
+# Spatial weights
+# --------------------------------------------------------------------------- #
+weights:
+  type: "queen"             # one of: queen | distance_band | knn
+  row_standardize: true
+  on_islands: "raise"       # raise | warn | ignore
+  distance_band:
+    threshold: null         # null => min threshold that removes islands
+  knn:
+    k: 8
+
+# --------------------------------------------------------------------------- #
+# Inference
+# --------------------------------------------------------------------------- #
+inference:
+  permutations: 999
+  significance: 0.05
+  seed: 42
+
+# --------------------------------------------------------------------------- #
+# Optional GWR
+# --------------------------------------------------------------------------- #
+gwr:
+  enabled: false
+  kernel: "bisquare"        # bisquare | gaussian | exponential
+  fixed: false              # false => adaptive (nearest-neighbour) bandwidth
+  criterion: "AICc"         # AICc | CV
+  # Covariates for the local regression (must exist in the merged GeoDataFrame).
+  covariates: []

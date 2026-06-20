@@ -1,0 +1,8 @@
+# SMP U-Net segmentation model.
+encoder_name: resnet34          # backbone (resnet34/resnet50/efficientnet-b0 ...)
+encoder_weights: imagenet       # pretrained weights, or null for random init
+in_channels: 3                  # RGB; bump for multispectral inputs
+classes: 1                      # binary segmentation (building footprint)
+lr: 0.001
+dice_weight: 0.5                # loss = dice_weight*Dice + bce_weight*BCE
+bce_weight: 0.5

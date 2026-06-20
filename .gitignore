@@ -1,0 +1,21 @@
+# Planning documents and source material (not part of the published portfolio)
+*.docx
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Environments (pixi.lock / uv.lock are meant to be committed once generated)
+.pixi/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db

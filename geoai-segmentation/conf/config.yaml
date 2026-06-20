@@ -1,0 +1,30 @@
+# Root Hydra config. Composes a model + data config and sets global run params.
+defaults:
+  - model: unet
+  - data: spacenet
+  - _self_
+
+# Reproducibility
+seed: 42
+deterministic: true
+
+# Experiment tracking (MLflow)
+experiment_name: geoseg
+mlflow_tracking_uri: file:./mlruns
+
+# Trainer
+trainer:
+  max_epochs: 50
+  accelerator: auto        # auto-detect GPU/CPU
+  devices: auto
+  fast_dev_run: false      # set true (or `make smoke`) for a 1-step smoke run
+  log_every_n_steps: 10
+
+# Filesystem paths
+paths:
+  output_dir: ./outputs
+  checkpoint_dir: ./checkpoints
+
+hydra:
+  run:
+    dir: ${paths.output_dir}/${now:%Y-%m-%d_%H-%M-%S}

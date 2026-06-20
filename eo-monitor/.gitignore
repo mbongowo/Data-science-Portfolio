@@ -1,0 +1,37 @@
+# Data & outputs (regenerated from a clean clone via the pipeline)
+data/*
+!data/README.md
+outputs/
+*.tif
+*.tiff
+*.cog
+checkpoints/
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Environments / tooling
+.pixi/
+.venv/
+venv/
+env/
+*.lock.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Allow tiny committed test fixtures even though *.tif is ignored above
+!tests/fixtures/**

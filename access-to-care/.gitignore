@@ -1,0 +1,35 @@
+# Data (downloaded reproducibly via data/download.py)
+data/raw/
+data/interim/
+data/processed/
+
+# Outputs cache (keep the folder, ignore generated artifacts)
+outputs/*
+!outputs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Pixi / environments
+.pixi/
+*.lock
+!pixi.lock
+.venv/
+venv/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

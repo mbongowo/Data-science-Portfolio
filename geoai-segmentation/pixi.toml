@@ -1,0 +1,48 @@
+# pixi project manifest. Run `pixi install` to resolve and generate pixi.lock
+# (the lockfile is intentionally NOT committed pre-resolution — it is created on
+# first install and pins exact versions for fully reproducible environments).
+[project]
+name = "geoai-segmentation"
+version = "0.1.0"
+description = "Reproducible deep-learning semantic segmentation for EO imagery."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge", "pytorch"]
+platforms = ["linux-64", "win-64", "osx-arm64"]
+
+[dependencies]
+python = ">=3.10,<3.13"
+numpy = "*"
+pytorch = "*"
+torchvision = "*"
+pytorch-lightning = "*"
+rasterio = "*"
+rioxarray = "*"
+matplotlib = "*"
+hydra-core = "*"
+omegaconf = "*"
+mlflow = "*"
+typer = "*"
+
+[pypi-dependencies]
+# Packages not reliably on conda-forge are installed from PyPI by pixi.
+torchgeo = "*"
+segmentation-models-pytorch = "*"
+albumentations = "*"
+
+[feature.dev.dependencies]
+pytest = "*"
+ruff = "*"
+mypy = "*"
+pre-commit = "*"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+prepare-synthetic = "python scripts/prepare_data.py --synthetic --out data/spacenet"
+train = "python -m geoseg.train"
+smoke = "python -m geoseg.train trainer.fast_dev_run=true data.batch_size=2 data.num_workers=0"
+test = "pytest -q"
+lint = "ruff check . && mypy src"
+fmt = "ruff format ."

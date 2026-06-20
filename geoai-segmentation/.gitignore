@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# pixi
+.pixi/
+
+# Data & model artifacts (versioned out-of-band, not in git).
+# Ignore directory *contents* (not the dir itself) so .gitkeep / .gitignore
+# placeholders stay tracked, and conf/data/ is not matched (leading slash).
+/data/*
+!/data/.gitkeep
+/checkpoints/*
+!/checkpoints/.gitignore
+outputs/
+mlruns/
+*.ckpt
+*.pth
+*.tif
+*.tiff
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

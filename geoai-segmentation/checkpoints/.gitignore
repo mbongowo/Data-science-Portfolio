@@ -1,0 +1,3 @@
+# Keep this directory in git but ignore all model checkpoints stored here.
+*
+!.gitignore

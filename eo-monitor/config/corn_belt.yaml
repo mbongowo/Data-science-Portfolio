@@ -1,0 +1,43 @@
+# eo-monitor configuration
+# Event: 2023 Northern Plains / Corn Belt flash drought.
+# In mid-2023 a rapid-onset ("flash") drought stressed corn and soybean across
+# the western Corn Belt. This config monitors a small AOI in eastern Nebraska and
+# compares peak-season 2023 greenness/moisture against a 2019-2022 baseline.
+
+aoi:
+  # Small bbox (lon_min, lat_min, lon_max, lat_max) in EPSG:4326 over eastern Nebraska.
+  # Keep it small so a clean run is cheap and reproducible.
+  bbox: [-97.10, 41.05, -96.85, 41.25]
+  # Alternatively, point at a vector file instead of a bbox:
+  # vector_path: data/aoi/nebraska_field.geojson
+
+date_range:
+  # Target observation window (the drought peak).
+  start: "2023-07-01"
+  end: "2023-08-31"
+
+baseline:
+  # Climatological baseline window used for the per-pixel mean/std.
+  start: "2019-07-01"
+  end: "2022-08-31"
+  # Only months in this list contribute to the baseline statistics (peak season).
+  months: [7, 8]
+
+indices:
+  - NDVI
+  - NDWI
+  - NDMI
+
+cloud_cover_max: 20        # discard scenes with eo:cloud_cover above this (%)
+max_items: 60              # hard guard on the number of STAC items pulled
+resolution: 20            # output pixel size in metres
+crs: "EPSG:32614"         # UTM zone 14N covers eastern Nebraska
+groupby: "solar_day"      # mosaic items captured on the same solar day
+
+stac:
+  url: "https://earth-search.aws.element84.com/v1"
+  collection: "sentinel-2-l2a"
+
+output:
+  dir: "outputs"
+  write_quicklook: true

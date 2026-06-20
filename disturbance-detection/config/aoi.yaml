@@ -1,0 +1,44 @@
+# Area of interest, time window, data source and detection parameters for the
+# disturbance-detection pipeline.
+#
+# The default AOI/event below is the 2020 Creek Fire (Sierra National Forest,
+# California) - a large, well-documented wildfire (MTBS event) that gives a
+# clear NDVI collapse to validate against.
+
+aoi:
+  name: "creek-fire-sierra-nf"
+  # [min_lon, min_lat, max_lon, max_lat] in EPSG:4326.
+  bbox: [-119.40, 37.10, -119.00, 37.45]
+  crs: "EPSG:4326"
+
+time:
+  start: "2018-01-01"
+  end: "2022-12-31"
+  # Regular cadence for the analysis time cube (pandas offset alias).
+  resample_freq: "16D"
+
+source:
+  # "hls" (HLSS30/HLSL30 via Planetary Computer) or "landsat-c2-l2".
+  collection: "hls"
+  stac_url: "https://planetarycomputer.microsoft.com/api/stac/v1"
+  resolution: 30.0          # output pixel size in metres
+  index: "ndvi"
+
+decompose:
+  period_days: 365.25
+  n_harmonics: 2            # sin/cos pairs in the harmonic regression
+
+detect:
+  method: "cusum"          # "cusum" (pure numpy) or "ruptures"
+  min_segment: 5           # minimum samples either side of a break
+  threshold: 1.0           # normalised CUSUM score to flag a break
+  magnitude_threshold: -0.1  # NDVI drop required to count as disturbance
+
+validation:
+  event_name: "Creek Fire 2020"
+  event_date: "2020-09-04"   # ignition date (MTBS)
+  window_days: 60            # detection must fall within +/- this many days
+  # Optional event footprint as a GeoJSON of the MTBS burn perimeter.
+  event_geojson: "data/raw/creek_fire_perimeter.geojson"
+  # Fallback bbox if no polygon is available.
+  event_bbox: [-119.35, 37.15, -119.05, 37.40]

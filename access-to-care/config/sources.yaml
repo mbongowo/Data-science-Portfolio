@@ -1,0 +1,71 @@
+# Data sources and study-area parameters for the access-to-care pipeline.
+# URLs live here (config, not hard-coded). data/download.py reads this file.
+
+study_area:
+  country: "Cameroon"
+  iso3: "CMR"
+  # Optional bounding box to clip / subset large inputs (W, S, E, N) in WGS84.
+  # Set to null to use the full national extent.
+  bbox: null
+  # CRS used for distance / travel-time work. UTM zone 32N covers most of Cameroon.
+  projected_crs: "EPSG:32632"
+  geographic_crs: "EPSG:4326"
+
+# Travel-time thresholds (minutes) used in the equity summary.
+thresholds_minutes: [30, 60, 120]
+
+# Default driving speeds (km/h) by OSM highway tag. Used to derive edge travel times.
+speeds_kph:
+  motorway: 100
+  motorway_link: 60
+  trunk: 80
+  trunk_link: 50
+  primary: 70
+  primary_link: 40
+  secondary: 60
+  secondary_link: 40
+  tertiary: 50
+  tertiary_link: 30
+  unclassified: 40
+  residential: 30
+  living_street: 15
+  service: 20
+  road: 30
+  track: 20
+default_speed_kph: 30
+
+sources:
+  osm:
+    name: "Geofabrik OSM extract (Cameroon)"
+    url: "https://download.geofabrik.de/africa/cameroon-latest.osm.pbf"
+    filename: "cameroon-latest.osm.pbf"
+    description: "Roads + amenities for routing and facility extraction."
+
+  facilities:
+    name: "Healthsites.io health-facility points (Cameroon)"
+    # Healthsites.io API. An API key is read from the HEALTHSITES_API_KEY env var.
+    url: "https://healthsites.io/api/v3/facilities/?country=Cameroon&output=geojson&page=1"
+    filename: "healthsites_cameroon.geojson"
+    description: "Cleaned health-facility points."
+    api_key_env: "HEALTHSITES_API_KEY"
+    paginate: true
+
+  population:
+    name: "WorldPop 100m gridded population (Cameroon, constrained UN-adjusted)"
+    url: "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/CMR/cmr_ppp_2020_UNadj_constrained.tif"
+    filename: "cmr_ppp_2020_UNadj_constrained.tif"
+    description: "100m population raster for demand weighting."
+
+  admin:
+    name: "GADM v4.1 administrative boundaries (Cameroon)"
+    url: "https://geodata.ucdavis.edu/gadm/gadm4.1/gpkg/gadm41_CMR.gpkg"
+    filename: "gadm41_CMR.gpkg"
+    admin2_layer: "ADM_ADM_2"
+    description: "Admin-2 boundaries for zonal equity statistics."
+
+# Demand surface configuration.
+demand:
+  # "h3" (uses h3 hexagons) or "grid" (regular point grid).
+  type: "h3"
+  h3_resolution: 7      # ~5 km hexes; coarse enough for a national run.
+  grid_spacing_m: 2000  # used only when type == "grid"

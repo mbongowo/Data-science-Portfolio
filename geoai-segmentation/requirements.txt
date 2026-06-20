@@ -1,0 +1,23 @@
+# pip fallback (prefer `pixi install`). Mirrors pyproject runtime deps.
+# Note: torch/torchvision may need an index URL for CUDA builds, e.g.:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+numpy
+torch
+torchvision
+pytorch-lightning
+torchgeo
+segmentation-models-pytorch
+rasterio
+rioxarray
+albumentations
+hydra-core
+omegaconf
+mlflow
+typer
+matplotlib
+
+# dev / tooling
+pytest
+ruff
+mypy
+pre-commit

@@ -1,0 +1,21 @@
+# Streamlit configuration for eo-explorer-app.
+
+[theme]
+base = "light"
+primaryColor = "#2e7d32"          # vegetation green -- nods to the indices
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f4f1"
+textColor = "#1b1b1b"
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+maxUploadSize = 50
+
+[browser]
+gatherUsageStats = false
+
+[runner]
+fastReruns = true

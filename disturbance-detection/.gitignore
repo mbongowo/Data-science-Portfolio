@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Pixi
+.pixi/
+pixi.lock
+
+# Caches / tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Data (downloaded; not versioned) - keep dir skeletons via nested .gitignore
+data/raw/*
+!data/raw/.gitignore
+
+# Outputs (generated maps/figures)
+outputs/*
+!outputs/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

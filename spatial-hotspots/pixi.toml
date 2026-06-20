@@ -1,0 +1,52 @@
+# pixi.toml — conda-forge environment for spatial-hotspots.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[project]
+name = "spatial-hotspots"
+version = "0.1.0"
+description = "Rigorous ESDA: weights, Moran's I, LISA, Getis-Ord Gi*, optional GWR."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+# Geospatial libs resolve far more reliably from conda-forge than from pip.
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+requests = ">=2.31"
+geopandas = ">=0.14"
+shapely = ">=2.0"
+libpysal = ">=4.9"
+esda = ">=2.5"
+splot = ">=1.1.5"
+mapclassify = ">=2.6"
+matplotlib-base = ">=3.7"
+
+[pypi-dependencies]
+# Install the package itself (editable) into the environment.
+spatial-hotspots = { path = ".", editable = true }
+
+[feature.gwr.dependencies]
+mgwr = ">=2.2"
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+ipykernel = ">=6.29"
+jupyterlab = ">=4.0"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev", "gwr"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+download = "python data/download.py --config config/aoi.yaml --out data/raw"
+analyze = "hotspots --config config/aoi.yaml --data data/raw/iowa_corn_yield_2023.gpkg --out outputs"
