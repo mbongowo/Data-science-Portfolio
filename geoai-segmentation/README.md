@@ -1,6 +1,6 @@
 # geoai-segmentation
 
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen)](.github/workflows/ci.yml)
+[![CI](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10--3.12-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Lightning](https://img.shields.io/badge/PyTorch-Lightning-792ee5)](https://lightning.ai)

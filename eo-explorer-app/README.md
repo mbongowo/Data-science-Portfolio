@@ -6,7 +6,7 @@
 <!-- TODO (after deploy): replace docs/screenshot.png with a real screenshot of the running app. -->
 ![EO Explorer screenshot](docs/screenshot.png)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/mbongowo/Data-science-Portfolio/ci.yml?branch=main&label=CI)](https://github.com/mbongowo/Data-science-Portfolio/actions)
+[![CI](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)](https://www.python.org/)
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)

@@ -1,6 +1,6 @@
 # access-to-care
 
-[![CI](https://github.com/josephmbuh/access-to-care/actions/workflows/ci.yml/badge.svg)](https://github.com/josephmbuh/access-to-care/actions/workflows/ci.yml)
+[![CI](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10--3.12-blue.svg)](pyproject.toml)
 

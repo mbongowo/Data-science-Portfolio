@@ -45,8 +45,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/josephmbuh/access-to-care"
-Repository = "https://github.com/josephmbuh/access-to-care"
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/access-to-care"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
 
 [project.scripts]
 access-to-care = "access.access:main"

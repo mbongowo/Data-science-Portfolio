@@ -44,8 +44,8 @@ dev = [
 hotspots = "hotspots.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/josephmbuh/spatial-hotspots"
-Repository = "https://github.com/josephmbuh/spatial-hotspots"
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial-hotspots"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hotspots"]

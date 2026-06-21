@@ -1,6 +1,6 @@
 # spatial-hotspots
 
-[![CI](https://github.com/josephmbuh/spatial-hotspots/actions/workflows/ci.yml/badge.svg)](https://github.com/josephmbuh/spatial-hotspots/actions/workflows/ci.yml)
+[![CI](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue.svg)](https://www.python.org/)
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

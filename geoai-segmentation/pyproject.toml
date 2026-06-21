@@ -49,8 +49,8 @@ geoseg-train = "geoseg.train:main"
 geoseg-infer = "geoseg.infer:main"
 
 [project.urls]
-Homepage = "https://github.com/josephmbuh/geoai-segmentation"
-Repository = "https://github.com/josephmbuh/geoai-segmentation"
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/geoai-segmentation"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/geoseg"]

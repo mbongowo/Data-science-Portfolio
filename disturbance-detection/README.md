@@ -1,6 +1,6 @@
 # disturbance-detection
 
-[![CI](https://img.shields.io/github/actions/workflow/status/josephmbuh/disturbance-detection/ci.yml?branch=main&label=CI)](.github/workflows/ci.yml)
+[![CI](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10--3.12-blue.svg)](pyproject.toml)
 [![Pixi](https://img.shields.io/badge/env-pixi-orange.svg)](pixi.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

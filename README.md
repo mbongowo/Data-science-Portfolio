@@ -23,12 +23,16 @@ Build and reading order: 1, 2, 3, 5, 4, 6. If you only have time for three, proj
 
 ## Running a project
 
-Every folder has a `README.md` and a `USAGE.md`. From a clean clone:
+**New here? Read [RUNNING.md](./RUNNING.md)** — it has copy-paste steps for each of
+the six projects in one place, including which ones need a (free) API key.
+
+The short version: every folder has its own `README.md` and `USAGE.md`, and from a
+clean clone the pattern is the same for all of them:
 
 ```bash
 cd <project>
 pixi install            # generates the lockfile and the environment
-pixi run test           # or: pip install -e . && pytest
+pixi run test           # quick check; needs no network or API keys
 ```
 
 `pixi` uses conda-forge, which is the reliable way to install GDAL and the rest of the geospatial stack. A `pip` path is provided as a fallback for the parts that do not need compiled geo libraries.

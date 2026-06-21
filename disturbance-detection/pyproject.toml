@@ -54,8 +54,8 @@ dev = [
 disturb = "disturb.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/josephmbuh/disturbance-detection"
-Repository = "https://github.com/josephmbuh/disturbance-detection"
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/disturbance-detection"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/disturb"]

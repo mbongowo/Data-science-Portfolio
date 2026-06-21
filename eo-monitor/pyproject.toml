@@ -51,8 +51,8 @@ dev = [
 eo-monitor = "eo_monitor.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/josephmbuh/eo-monitor"
-Repository = "https://github.com/josephmbuh/eo-monitor"
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/eo-monitor"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/eo_monitor"]
