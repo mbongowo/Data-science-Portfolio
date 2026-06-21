@@ -1,7 +1,7 @@
 # pixi project manifest. Run `pixi install` to resolve and generate pixi.lock
 # (the lockfile is intentionally NOT committed pre-resolution — it is created on
 # first install and pins exact versions for fully reproducible environments).
-[project]
+[workspace]
 name = "geoai-segmentation"
 version = "0.1.0"
 description = "Reproducible deep-learning semantic segmentation for EO imagery."

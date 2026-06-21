@@ -2,7 +2,7 @@
 # Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
 # the lock is machine-generated). See README for details.
 
-[project]
+[workspace]
 name = "spatial-hotspots"
 version = "0.1.0"
 description = "Rigorous ESDA: weights, Moran's I, LISA, Getis-Ord Gi*, optional GWR."

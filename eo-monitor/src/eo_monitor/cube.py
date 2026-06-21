@@ -47,8 +47,8 @@ def load_cube(
     """
     chunks = chunks or DEFAULT_CHUNKS
     assets = required_bands(config.indices)
-    # Always pull SCL for masking.
-    bands = [*assets, "SCL"]
+    # Always pull the Scene Classification Layer (asset "scl") for masking.
+    bands = [*assets, "scl"]
 
     logger.info(
         "Loading cube: bands=%s res=%sm crs=%s groupby=%s",
@@ -67,10 +67,13 @@ def load_cube(
         chunks=chunks,
     )
 
-    masked = apply_scl_mask(ds, scl_var="SCL")
+    masked = apply_scl_mask(ds, scl_var="scl")
 
-    # Rename asset keys to logical band names for downstream index math.
+    # Rename asset keys to logical band names for downstream index math, and
+    # normalise the SCL asset name to the upper-case "SCL" used elsewhere.
     rename = {asset: logical for asset, logical in _reverse_band_lookup().items() if asset in masked}
+    if "scl" in masked:
+        rename["scl"] = "SCL"
     masked = masked.rename(rename)
     return masked
 

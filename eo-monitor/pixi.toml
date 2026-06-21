@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "eo-monitor"
 version = "0.1.0"
 description = "Config-driven Sentinel-2 vegetation/moisture anomaly monitoring (STAC -> COG)."

@@ -4,7 +4,7 @@
 # Run `pixi install` to resolve and generate pixi.lock (NOT committed here -
 # the lockfile is machine-generated; see README).
 
-[project]
+[workspace]
 name = "disturbance-detection"
 version = "0.1.0"
 description = "Time-series change & disturbance detection over satellite NDVI cubes."

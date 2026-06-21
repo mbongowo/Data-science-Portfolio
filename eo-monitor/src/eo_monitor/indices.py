@@ -10,9 +10,11 @@ NDVI = (NIR  - Red)  / (NIR  + Red)
 NDWI = (Green - NIR) / (Green + NIR)   (McFeeters 1996, open-water/wetness)
 NDMI = (NIR  - SWIR) / (NIR  + SWIR)   (vegetation moisture, a.k.a. NDII)
 
-Sentinel-2 band mapping (L2A)
------------------------------
-Red   = B04, Green = B03, NIR = B08, SWIR = B11
+Sentinel-2 L2A band mapping (Earth Search common-name assets)
+-------------------------------------------------------------
+Red = red (B04), Green = green (B03), NIR = nir (B08), SWIR = swir16 (B11).
+The Earth Search catalogue names its assets with these common names rather than
+the B-number band IDs, so those are the keys requested from the STAC items.
 """
 
 from __future__ import annotations
@@ -24,12 +26,12 @@ import numpy as np
 # Works for both numpy ndarrays and xarray DataArrays (duck-typed arithmetic).
 ArrayT = TypeVar("ArrayT")
 
-# Sentinel-2 L2A asset keys for each logical band used here.
+# Earth Search (sentinel-2-l2a) asset keys for each logical band used here.
 BAND_ALIASES: dict[str, str] = {
-    "red": "B04",
-    "green": "B03",
-    "nir": "B08",
-    "swir": "B11",
+    "red": "red",
+    "green": "green",
+    "nir": "nir",
+    "swir": "swir16",
 }
 
 

@@ -8,7 +8,7 @@
 #   pixi run test   -> run the smoke tests
 #   pixi run lint   -> ruff check
 
-[project]
+[workspace]
 name = "eo-explorer-app"
 version = "0.1.0"
 description = "Interactive EO explorer: draw an AOI, pick a date, render a live Sentinel-2 spectral index on a map."

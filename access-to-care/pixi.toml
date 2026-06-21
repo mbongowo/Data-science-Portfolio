@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "access-to-care"
 version = "0.1.0"
 description = "Travel-time-to-care accessibility and equity analysis for Cameroon"
