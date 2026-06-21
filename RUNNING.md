@@ -122,9 +122,21 @@ Two ways to get there:
       --recursive --no-sign-request
   ```
 
-  SpaceNet ships images with vector labels, so you rasterise the building polygons
-  into single-band masks and tile both into the `images/` and `masks/` layout
-  above.
+  SpaceNet ships images with vector (GeoJSON) labels, so the polygons need to be
+  rasterised into single-band masks. The included helper does that in one command,
+  pairing each image with its GeoJSON, burning the footprints onto the image grid,
+  and writing the `images/` + `masks/` layout above:
+
+  ```bash
+  pixi run python scripts/rasterize_spacenet.py \
+      --images data/raw/RGB-PanSharpen \
+      --labels data/raw/geojson/buildings \
+      --out data/spacenet
+  ```
+
+  It pairs files on the shared `img<N>` token by default (override with
+  `--key-regex`), reprojects labels to each image's CRS, and accepts `--all-touched`,
+  `--link` (hardlink images instead of copying), and `--limit N` for a quick trial.
 - **torchgeo benchmark loaders.** Run `python scripts/prepare_data.py --torchgeo`
   to print a ready-made snippet (for example `SpaceNet1(root="data/raw",
   download=True)`).
