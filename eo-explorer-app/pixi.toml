@@ -27,8 +27,10 @@ install-eo-monitor = "pip install -e ../eo-monitor"
 [dependencies]
 python = ">=3.10,<3.13"
 streamlit = ">=1.32"
-leafmap = ">=0.30"
+streamlit-folium = ">=0.20"
 folium = ">=0.16"
+branca = ">=0.7"
+pillow = ">=10.0"
 pystac-client = ">=0.7"
 odc-stac = ">=0.3.8"
 rioxarray = ">=0.15"
@@ -37,7 +39,6 @@ rasterio = ">=1.3"
 numpy = ">=1.24"
 matplotlib-base = ">=3.7"
 dask = ">=2024.1"
-localtileserver = ">=0.10"
 
 [feature.dev.dependencies]
 pytest = ">=8.0"
@@ -54,4 +55,4 @@ dev = { features = ["dev"], solve-group = "default" }
 # dependency, because it lives in a sibling git repo, not on conda-forge.
 [pypi-dependencies]
 # Uncomment to pull eo-monitor straight from GitHub instead of the local path:
-# eo-monitor = { git = "https://github.com/JosephMbuh/eo-monitor.git" }
+# eo-monitor = { git = "https://github.com/mbongowo/Data-science-Portfolio.git", subdirectory = "eo-monitor", branch = "main" }

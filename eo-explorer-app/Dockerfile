@@ -6,7 +6,8 @@
 #
 FROM python:3.12-slim
 
-# System libraries needed by rasterio / GDAL / leafmap raster handling.
+# System libraries needed by rasterio / GDAL raster handling, plus git so pip
+# can install eo-monitor from this repo.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gdal-bin \
         libgdal-dev \
@@ -22,14 +23,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install Python dependencies first for better layer caching.
-COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Install the reused flagship index package (eo-monitor) from git.
-# In CI/deploy this lets indices work without a sibling checkout.
-RUN pip install "eo-monitor @ git+https://github.com/JosephMbuh/eo-monitor.git" \
-    || echo "WARNING: eo-monitor install failed; index computation will be disabled at runtime."
+# Install Python dependencies first for better layer caching. The deploy
+# manifest (app/requirements.txt) lists the runtime deps and installs eo-monitor
+# from this repo, so no separate install step is needed.
+COPY app/requirements.txt ./app/requirements.txt
+RUN pip install --upgrade pip && pip install -r app/requirements.txt
 
 # Copy the application code.
 COPY pyproject.toml README.md ./

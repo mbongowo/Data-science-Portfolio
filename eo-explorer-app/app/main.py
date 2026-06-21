@@ -6,14 +6,15 @@ Run locally with::
 
 Workflow
 --------
-1. The user draws an AOI on the leafmap map (draw control).
+1. The user draws an area of interest on the map (rectangle or polygon tool).
 2. The sidebar offers a date picker and an index selector (NDVI / NDWI / NDMI).
-3. On request the app finds the least-cloudy Sentinel-2 L2A scene near the date,
-   loads the needed bands, computes the index using the reused ``eo-monitor``
-   functions, and renders it as a coloured layer with a legend.
+3. On "Load", the app finds the least-cloudy Sentinel-2 L2A scene near the date,
+   loads the needed bands, computes the index with the reused ``eo-monitor``
+   functions, and draws it on the map as a coloured overlay with a legend.
 
-All STAC queries / loads are cached with ``st.cache_data`` keyed by the
-AOI bbox + date + index so repeated requests are fast.
+The drawn geometry is read back from the map with ``st_folium``. STAC queries and
+loads are cached by AOI + date + index, and the computed overlay is kept in
+session state so it stays on the map across reruns.
 """
 
 from __future__ import annotations
@@ -49,12 +50,8 @@ st.set_page_config(
 
 @st.cache_data(show_spinner=False)
 def _cached_find_and_load(bbox: tuple[float, ...], date: str, index: str):
-    """Find the best scene and load its bands, cached by (bbox, date, index).
-
-    The explicit ``cache_key`` is folded into the arguments so the cache entry is
-    deterministic and shareable across reruns.
-    """
-    key = stac.cache_key(bbox, date, index)  # noqa: F841 - documents the cache identity
+    """Find the best scene and load its bands, cached by (bbox, date, index)."""
+    stac.cache_key(bbox, date, index)  # documents the cache identity
     item = stac.find_scene(bbox, date)
     if item is None:
         return None, None
@@ -101,7 +98,7 @@ def _sidebar() -> tuple[str, _dt.date, float]:
 
     if not render.EO_MONITOR_AVAILABLE:
         st.sidebar.error(
-            "eo-monitor is not installed - index computation is disabled. "
+            "eo-monitor is not installed, so index computation is disabled. "
             "Install it with `pip install -e ../eo-monitor`."
         )
 
@@ -109,60 +106,117 @@ def _sidebar() -> tuple[str, _dt.date, float]:
 
 
 # --------------------------------------------------------------------------- #
+# Map + draw capture
+# --------------------------------------------------------------------------- #
+
+
+def _build_map(overlay: dict | None):
+    """Build the folium map: satellite basemap, draw tools, and any saved overlay."""
+    import folium
+    from folium.plugins import Draw
+
+    fmap = folium.Map(location=[10.0, 15.0], zoom_start=3, control_scale=True, tiles=None)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        attr="Tiles (c) Esri",
+        name="Esri World Imagery",
+        control=False,
+    ).add_to(fmap)
+    Draw(
+        export=False,
+        draw_options={
+            "polyline": False,
+            "circle": False,
+            "marker": False,
+            "circlemarker": False,
+        },
+    ).add_to(fmap)
+
+    if overlay is not None:
+        folium.raster_layers.ImageOverlay(
+            image=overlay["image_uri"],
+            bounds=overlay["bounds"],
+            opacity=overlay.get("opacity", 0.8),
+            name=overlay["name"],
+            interactive=False,
+        ).add_to(fmap)
+        render.add_overlay_legend(fmap, overlay)
+        fmap.fit_bounds(overlay["bounds"])
+
+    return fmap
+
+
+def _latest_drawing(map_state: dict | None):
+    """Return the most recent drawn GeoJSON feature from st_folium output."""
+    if not map_state:
+        return None
+    drawing = map_state.get("last_active_drawing")
+    if drawing:
+        return drawing
+    all_drawings = map_state.get("all_drawings")
+    if all_drawings:
+        return all_drawings[-1]
+    return None
+
+
+# --------------------------------------------------------------------------- #
 # Main page
 # --------------------------------------------------------------------------- #
 
 
-def _get_drawn_geojson(map_obj):
-    """Return the last-drawn GeoJSON feature from a leafmap map, or ``None``."""
-    feat = getattr(map_obj, "user_roi", None)
-    if feat:
-        return feat
-    drawn = getattr(map_obj, "draw_features", None)
-    if drawn:
-        return {"type": "FeatureCollection", "features": drawn}
-    return None
-
-
 def main() -> None:
-    import leafmap.foliumap as leafmap
+    from streamlit_folium import st_folium
 
     index, date, max_area = _sidebar()
 
     st.title("Interactive Earth-Observation Explorer")
     st.write(
-        "A shippable demo that pulls **live Sentinel-2 L2A** imagery and renders "
-        "a chosen spectral index on the map. The index maths is reused from the "
-        "flagship **eo-monitor** package."
+        "Pull **live Sentinel-2 L2A** imagery and render a chosen spectral index "
+        "on the map. The index maths is reused from the eo-monitor package."
     )
 
-    m = leafmap.Map(center=[0, 20], zoom=3, draw_export=False)
-    m.add_basemap("Esri.WorldImagery")
+    fmap = _build_map(st.session_state.get("overlay"))
 
-    geojson = _get_drawn_geojson(m)
+    run = st.button(
+        "Load imagery & compute index",
+        type="primary",
+        disabled=not render.EO_MONITOR_AVAILABLE,
+    )
 
-    run = st.button("Load imagery & compute index", type="primary")
+    map_state = st_folium(
+        fmap,
+        height=600,
+        width=None,
+        returned_objects=["last_active_drawing", "all_drawings"],
+        key="eo_map",
+    )
+
+    drawing = _latest_drawing(map_state)
+    if drawing is not None:
+        st.session_state["aoi_geojson"] = drawing
 
     if run:
-        if not geojson:
-            st.warning("Please draw an area of interest on the map first.")
-        else:
-            _handle_request(m, geojson, date, index, max_area)
+        _handle_request(date, index, max_area)
 
-    m.to_streamlit(height=620)
+    _show_result()
 
     with st.expander("About this app"):
         st.markdown(
             """
-            * **Data:** Sentinel-2 L2A via [Earth Search](https://earth-search.aws.element84.com/v1) (no auth).
-            * **Indices:** reused from [`eo-monitor`](https://github.com/JosephMbuh/eo-monitor).
-            * **Caching:** STAC queries/loads are cached by AOI + date + index.
+            - **Data:** Sentinel-2 L2A via [Earth Search](https://earth-search.aws.element84.com/v1) (no auth).
+            - **Indices:** reused from the eo-monitor package in this repository.
+            - **Caching:** STAC queries and loads are cached by AOI, date, and index.
             """
         )
 
 
-def _handle_request(m, geojson, date, index, max_area) -> None:
-    """Validate the AOI, fetch the scene, compute and render the index."""
+def _handle_request(date: _dt.date, index: str, max_area: float) -> None:
+    """Validate the saved AOI, fetch a scene, compute the index, save the overlay."""
+    geojson = st.session_state.get("aoi_geojson")
+    if not geojson:
+        st.warning("Draw an area of interest on the map first.")
+        return
+
     try:
         bbox = stac.aoi_bbox_from_geojson(geojson)
     except ValueError as exc:
@@ -173,20 +227,10 @@ def _handle_request(m, geojson, date, index, max_area) -> None:
     if not validation.ok:
         st.warning(validation.message)
         return
-    st.info(validation.message)
-
-    if not render.EO_MONITOR_AVAILABLE:
-        st.error(
-            "Cannot compute the index because eo-monitor is not installed. "
-            "Install it with `pip install -e ../eo-monitor` and rerun."
-        )
-        return
 
     with st.spinner("Searching Earth Search for the least-cloudy scene..."):
         try:
-            meta, dataset = _cached_find_and_load(
-                tuple(bbox), date.isoformat(), index
-            )
+            meta, dataset = _cached_find_and_load(tuple(bbox), date.isoformat(), index)
         except Exception as exc:  # noqa: BLE001 - surface network/STAC errors nicely
             st.error(f"Failed to query or load imagery: {exc}")
             return
@@ -194,27 +238,45 @@ def _handle_request(m, geojson, date, index, max_area) -> None:
     if dataset is None:
         st.warning(
             "No suitable Sentinel-2 scene was found for that area and date. "
-            "Try a different date or a larger date window."
+            "Try a different date or a larger area."
         )
+        st.session_state.pop("overlay", None)
         return
 
-    st.success(
-        f"Scene `{meta['id']}` from {meta['datetime']} "
-        f"(cloud cover {meta['cloud_cover']:.1f}%)."
-    )
+    with st.spinner("Computing the index..."):
+        try:
+            overlay = render.build_index_overlay(dataset, index, meta=meta)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Failed to compute or render the index: {exc}")
+            return
 
-    try:
-        data = render.add_index_layer(m, dataset, index)
-    except Exception as exc:  # noqa: BLE001
-        st.error(f"Failed to compute or render the index: {exc}")
+    st.session_state["overlay"] = overlay
+    st.rerun()
+
+
+def _show_result() -> None:
+    """Show the scene caption and index statistics for the saved overlay."""
+    overlay = st.session_state.get("overlay")
+    if not overlay:
         return
 
-    stats = render.index_stats(data)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric(f"{index} min", f"{stats['min']:.3f}")
-    col2.metric(f"{index} mean", f"{stats['mean']:.3f}")
-    col3.metric(f"{index} max", f"{stats['max']:.3f}")
-    col4.metric("Valid pixels", f"{stats['valid_fraction'] * 100:.0f}%")
+    meta = overlay.get("meta") or {}
+    scene_id = meta.get("id")
+    if scene_id:
+        cloud = meta.get("cloud_cover")
+        cloud_txt = f"{cloud:.1f}%" if isinstance(cloud, (int, float)) else "n/a"
+        st.success(
+            f"Scene `{scene_id}` from {meta.get('datetime')} (cloud cover {cloud_txt})."
+        )
+
+    stats = overlay.get("stats") or {}
+    if stats:
+        name = overlay["name"]
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric(f"{name} min", f"{stats['min']:.3f}")
+        col2.metric(f"{name} mean", f"{stats['mean']:.3f}")
+        col3.metric(f"{name} max", f"{stats['max']:.3f}")
+        col4.metric("Valid pixels", f"{stats['valid_fraction'] * 100:.0f}%")
 
 
 if __name__ == "__main__":

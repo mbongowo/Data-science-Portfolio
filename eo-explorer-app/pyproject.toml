@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10,<3.13"
 authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
-keywords = ["earth-observation", "sentinel-2", "stac", "streamlit", "leafmap", "ndvi"]
+keywords = ["earth-observation", "sentinel-2", "stac", "streamlit", "folium", "ndvi"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -20,8 +20,10 @@ classifiers = [
 
 dependencies = [
     "streamlit>=1.32",
-    "leafmap>=0.30",
+    "streamlit-folium>=0.20",
     "folium>=0.16",
+    "branca>=0.7",
+    "pillow>=10.0",
     "pystac-client>=0.7",
     "odc-stac>=0.3.8",
     "rioxarray>=0.15",
@@ -38,7 +40,7 @@ dependencies = [
     #        pip install -e ../eo-monitor
     #
     #   2. Git dependency (uncomment the line below, or use [project.optional...]):
-    #        "eo-monitor @ git+https://github.com/JosephMbuh/eo-monitor.git",
+    #        "eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=eo-monitor",
     #
     # It is intentionally NOT a hard dependency here so the app installs and the
     # smoke tests run even before eo-monitor is built; render.require_eo_monitor()
@@ -49,7 +51,7 @@ dependencies = [
 # `pip install eo-explorer-app[eo-monitor-git]` to pull the flagship package
 # straight from GitHub.
 eo-monitor-git = [
-    "eo-monitor @ git+https://github.com/JosephMbuh/eo-monitor.git",
+    "eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=eo-monitor",
 ]
 # Local development extras.
 dev = [
@@ -59,8 +61,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/JosephMbuh/eo-explorer-app"
-"Flagship (eo-monitor)" = "https://github.com/JosephMbuh/eo-monitor"
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/eo-explorer-app"
+"Flagship (eo-monitor)" = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/eo-monitor"
 
 [project.scripts]
 # Convenience: `eo-explorer` -> launches the streamlit app.

@@ -68,7 +68,7 @@ def require_eo_monitor() -> None:
             "which is not installed. Install it from the sibling repo, e.g.:\n\n"
             "    pip install -e ../eo-monitor\n\n"
             "or add the git dependency:\n\n"
-            "    pip install 'eo-monitor @ git+https://github.com/JosephMbuh/eo-monitor.git'\n\n"
+            "    pip install 'eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=eo-monitor'\n\n"
             f"(original import error: {_EO_MONITOR_IMPORT_ERROR})"
         )
 
@@ -188,64 +188,106 @@ def colorize(values, *, vmin: float, vmax: float, colormap: str):
     return (rgba * 255).astype("uint8")
 
 
-def add_index_layer(map_obj, dataset, index: str, *, layer_name: str | None = None):
-    """Compute ``index`` and add it to a leafmap ``Map`` as a coloured layer.
+def build_index_overlay(
+    dataset, index: str, *, meta: dict | None = None, opacity: float = 0.8
+) -> dict:
+    """Compute ``index`` and package it as a folium image overlay.
 
-    Also adds a matching colour-bar legend. Returns the computed
-    :class:`xarray.DataArray` for downstream use (e.g. stats display).
+    Returns a plain dict that ``app.main`` stores in session state and adds to a
+    folium map as an :class:`folium.raster_layers.ImageOverlay`. The pixels are
+    carried as a base64 PNG data URI, so the app needs no tile server and runs on
+    a small host.
+
+    The computed index is reprojected to EPSG:4326, the lon/lat space a folium
+    overlay expects, and its rows are ordered north-to-south so the image lines up
+    with the returned bounds.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        A loaded scene with one variable per required band.
+    index : str
+        Spectral index name (NDVI / NDWI / NDMI).
+    meta : dict, optional
+        Scene metadata to carry alongside the overlay for display.
+    opacity : float, optional
+        Overlay opacity in ``[0, 1]``.
+
+    Returns
+    -------
+    dict
+        Keys: ``image_uri``, ``bounds`` (``[[south, west], [north, east]]``),
+        ``name``, ``description``, ``vmin``, ``vmax``, ``colormap``, ``opacity``,
+        ``stats``, and ``meta``.
     """
+    import base64
+    import io
+
+    from PIL import Image
+
     spec = INDEX_REGISTRY[index.upper()]
     data = compute_index(dataset, index)
-    name = layer_name or f"{spec.name}"
 
-    # Prefer leafmap's native xarray support so the GeoTIFF/tiles are handled
-    # correctly; fall back to a coloured numpy image overlay if unavailable.
-    try:
-        map_obj.add_raster(
-            data,
-            colormap=spec.colormap,
-            vmin=spec.vmin,
-            vmax=spec.vmax,
-            layer_name=name,
-        )
-    except Exception:  # noqa: BLE001 - older leafmap or non-georef array
-        rgba = colorize(data, vmin=spec.vmin, vmax=spec.vmax, colormap=spec.colormap)
-        bounds = _array_bounds(data)
-        map_obj.add_image(rgba, bounds=bounds, layer_name=name)
+    data_latlon = _to_latlon(data)
+    rgba = colorize(data_latlon, vmin=spec.vmin, vmax=spec.vmax, colormap=spec.colormap)
 
-    add_legend(map_obj, spec)
-    return data
+    buffer = io.BytesIO()
+    Image.fromarray(rgba, mode="RGBA").save(buffer, format="PNG")
+    image_uri = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
-
-def add_legend(map_obj, spec: IndexSpec) -> None:
-    """Add a colour-bar / legend describing ``spec`` to the map."""
-    try:
-        map_obj.add_colormap(
-            cmap=spec.colormap,
-            vmin=spec.vmin,
-            vmax=spec.vmax,
-            label=f"{spec.name} - {spec.description}",
-        )
-    except Exception:  # noqa: BLE001 - method name differs across leafmap versions
-        try:
-            map_obj.add_colorbar(
-                colors=spec.colormap,
-                vmin=spec.vmin,
-                vmax=spec.vmax,
-                caption=spec.name,
-            )
-        except Exception:  # noqa: BLE001 - legend is best-effort, never fatal
-            pass
+    return {
+        "image_uri": image_uri,
+        "bounds": _latlon_bounds(data_latlon),
+        "name": spec.name,
+        "description": spec.description,
+        "vmin": spec.vmin,
+        "vmax": spec.vmax,
+        "colormap": spec.colormap,
+        "opacity": float(opacity),
+        "stats": index_stats(data),
+        "meta": dict(meta or {}),
+    }
 
 
-def _array_bounds(data) -> list[list[float]]:
-    """Best-effort ``[[s, w], [n, e]]`` bounds for an xarray image overlay."""
-    try:
-        x = data["x"].values
-        y = data["y"].values
-        return [[float(y.min()), float(x.min())], [float(y.max()), float(x.max())]]
-    except Exception:  # noqa: BLE001
-        return [[-90.0, -180.0], [90.0, 180.0]]
+def add_overlay_legend(folium_map, overlay: dict) -> None:
+    """Add a branca colour-bar legend for a built overlay to ``folium_map``."""
+    import branca.colormap as branca_cm
+    import matplotlib
+    import numpy as np
+
+    cmap = matplotlib.colormaps[overlay["colormap"]]
+    colours = [matplotlib.colors.to_hex(cmap(t)) for t in np.linspace(0.0, 1.0, 9)]
+    legend = branca_cm.LinearColormap(
+        colours, vmin=overlay["vmin"], vmax=overlay["vmax"]
+    )
+    legend.caption = f"{overlay['name']} - {overlay['description']}"
+    legend.add_to(folium_map)
+
+
+def _to_latlon(data):
+    """Reproject a computed index array to EPSG:4326 with north-up rows.
+
+    ``load_scene`` loads imagery in EPSG:3857, so the index inherits that CRS. If
+    the CRS was dropped during the index arithmetic it is set back before
+    reprojecting. Rows are then ordered north-to-south so image row 0 is the
+    northern edge, matching how a folium overlay reads its bounds.
+    """
+    import rioxarray  # noqa: F401 - registers the .rio accessor
+
+    arr = data
+    if arr.rio.crs is None:
+        arr = arr.rio.write_crs("EPSG:3857")
+    arr = arr.rio.reproject("EPSG:4326")
+    if "y" in arr.dims and float(arr["y"][0]) < float(arr["y"][-1]):
+        arr = arr.sortby("y", ascending=False)
+    return arr
+
+
+def _latlon_bounds(data_latlon) -> list[list[float]]:
+    """Return ``[[south, west], [north, east]]`` lon/lat bounds for an overlay."""
+    xs = data_latlon["x"].values
+    ys = data_latlon["y"].values
+    return [[float(ys.min()), float(xs.min())], [float(ys.max()), float(xs.max())]]
 
 
 def index_stats(data) -> dict[str, float]:

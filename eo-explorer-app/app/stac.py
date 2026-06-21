@@ -97,9 +97,9 @@ def aoi_bbox_from_geojson(geojson: dict[str, Any]) -> tuple[float, float, float,
     """Return ``(min_lon, min_lat, max_lon, max_lat)`` for a GeoJSON object.
 
     The function walks every coordinate it can reach and takes the extremes, so
-    it does not care which geometry type produced them. A leafmap draw control
-    may emit a bare Polygon, a Feature wrapping one, or a FeatureCollection of
-    several shapes; a MultiPolygon and a GeometryCollection work the same way.
+    it does not care which geometry type produced them. A draw control may emit a
+    bare Polygon, a Feature wrapping one, or a FeatureCollection of several
+    shapes; a MultiPolygon and a GeometryCollection work the same way.
 
     Parameters
     ----------

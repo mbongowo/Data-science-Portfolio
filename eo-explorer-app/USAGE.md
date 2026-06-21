@@ -27,10 +27,10 @@ an editable install is the most convenient for development:
 pip install -e ../eo-monitor
 ```
 
-Without a local checkout, install it from git:
+Without a local checkout, install it from git (the `eo-monitor` folder of this repo):
 
 ```bash
-pip install "eo-monitor @ git+https://github.com/JosephMbuh/eo-monitor.git"
+pip install "eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=eo-monitor"
 ```
 
 The same git form is available as an extra:
@@ -52,7 +52,7 @@ To pull `eo-monitor` from git instead of a sibling path, uncomment the
 
 ### Verify the install
 
-The pure-helper tests run without streamlit, leafmap, or the STAC stack, so
+The pure-helper tests run without streamlit, folium, or the STAC stack, so
 they are a fast check that the package imports correctly:
 
 ```bash

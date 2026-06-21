@@ -3,7 +3,7 @@
 These tests import the app modules and exercise the **pure** helper functions
 that have no heavy third-party dependencies. They must pass with only the
 standard library (plus numpy, which the colour helpers use) installed -- i.e.
-without streamlit, leafmap, pystac-client, odc-stac, or even eo-monitor.
+without streamlit, folium, pystac-client, odc-stac, or even eo-monitor.
 
 Heavy imports inside ``app.render`` / ``app.stac`` are guarded so that importing
 the modules at test-collection time does not pull in optional dependencies.
@@ -15,7 +15,7 @@ import math
 
 import pytest
 
-# Importing the modules must not require streamlit / leafmap / pystac etc.
+# Importing the modules must not require streamlit / folium / pystac etc.
 from app import render, stac
 
 
