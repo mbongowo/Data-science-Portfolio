@@ -1,0 +1,51 @@
+# Pipeline configuration for clickstream-pipeline.
+# Everything that defines "how" the stream is windowed and sessionised lives
+# here; the code reads it. Durations are in seconds unless a Spark interval
+# string is noted.
+
+# --------------------------------------------------------------------------- #
+# Kafka topics
+# --------------------------------------------------------------------------- #
+kafka:
+  bootstrap_servers: "localhost:9092"
+  topics:
+    events: "clickstream.events"        # raw decoded events land here
+    sessions: "clickstream.sessions"    # sessionised output
+    funnels: "clickstream.funnels"      # funnel step counts
+  consumer_group: "clickstream"
+
+# --------------------------------------------------------------------------- #
+# Event-time windows
+# --------------------------------------------------------------------------- #
+windows:
+  tumbling_s: 60          # fixed, non-overlapping window width
+  sliding:
+    window_s: 300         # sliding window width
+    slide_s: 60           # advance between sliding windows
+  # Spark interval string equivalents for the streaming job.
+  spark_window: "1 minute"
+
+# --------------------------------------------------------------------------- #
+# Sessionisation
+# --------------------------------------------------------------------------- #
+session:
+  gap_s: 1800             # inactivity gap that starts a new session (30 min)
+
+# --------------------------------------------------------------------------- #
+# Watermark (late-event handling)
+# --------------------------------------------------------------------------- #
+watermark:
+  allowed_lateness_s: 120   # grace period for out-of-order events (2 min)
+  spark_delay: "2 minutes"  # Spark withWatermark() interval string
+
+# --------------------------------------------------------------------------- #
+# Funnel
+# --------------------------------------------------------------------------- #
+funnel:
+  # Ordered step names; a user must hit them in this order to advance.
+  steps:
+    - "view"
+    - "search"
+    - "add_to_cart"
+    - "checkout"
+    - "purchase"

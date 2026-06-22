@@ -1,0 +1,21 @@
+# pip fallback. Prefer `pixi install` (conda-forge) for a pinned environment.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+duckdb>=1.0
+pyarrow>=15.0
+
+# dbt (analytics engineering layer)
+dbt-core>=1.7
+dbt-duckdb>=1.7
+
+# Dev / CI
+pytest>=8.0
+ruff>=0.6
+mypy>=1.10
+pre-commit>=3.7

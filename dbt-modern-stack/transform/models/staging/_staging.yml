@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_titles
+    description: "Cleaned, typed titles: one row per title_id."
+    columns:
+      - name: title_id
+        description: "IMDb title identifier (tconst), renamed."
+        tests:
+          - not_null
+          - unique
+      - name: title_type
+        description: "Kind of title (movie, short, tvSeries, ...)."
+        tests:
+          - not_null
+
+  - name: stg_ratings
+    description: "Cleaned, typed ratings: one row per rated title_id."
+    columns:
+      - name: title_id
+        description: "IMDb title identifier; foreign key to stg_titles."
+        tests:
+          - not_null
+          - unique
+      - name: average_rating
+        description: "Mean user rating, 1.0-10.0."
+        tests:
+          - not_null

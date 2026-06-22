@@ -1,0 +1,47 @@
+# Configuration for the HDFS log anomaly pipeline.
+# Everything that changes "what" is analysed lives here; the code reads it.
+
+# --------------------------------------------------------------------------- #
+# Input logs
+# --------------------------------------------------------------------------- #
+input:
+  # Glob of raw log files (Loghub HDFS_v1 ships a single HDFS.log; a directory
+  # of shards also works).
+  glob: "data/raw/HDFS_v1/HDFS.log"
+  # Regex that pulls the session key out of each line. For HDFS the session is
+  # the block id (blk_-?\d+); event sequences are grouped per block.
+  session_regex: "(blk_-?\\d+)"
+
+# --------------------------------------------------------------------------- #
+# Templating (Drain-lite variable masking)
+# --------------------------------------------------------------------------- #
+templating:
+  # Toggle the individual masking passes. Each replaces a class of variable
+  # token with "<*>" so that lines collapse to a stable template.
+  mask:
+    block_ids: true         # blk_-?\d+
+    hex_ids: true           # 0x[0-9a-f]+ and long hex runs
+    ip_port: true           # IPv4 and IPv4:port
+    numbers: true           # bare integers / floats
+
+# --------------------------------------------------------------------------- #
+# Detector
+# --------------------------------------------------------------------------- #
+detect:
+  method: "pca"             # one of: pca | zscore
+  pca:
+    k: 3                    # number of principal components to keep
+    quantile: 0.99          # flag reconstruction errors above this quantile
+  zscore:
+    z: 3.0                  # flag |score - mean| / std above this many sigma
+
+# --------------------------------------------------------------------------- #
+# Evaluation
+# --------------------------------------------------------------------------- #
+evaluate:
+  # Loghub HDFS_v1 ships anomaly_label.csv mapping each block id to
+  # Normal / Anomaly. Point at it to score precision / recall / F1.
+  label_path: "data/raw/HDFS_v1/anomaly_label.csv"
+  block_column: "BlockId"
+  label_column: "Label"
+  anomaly_value: "Anomaly"

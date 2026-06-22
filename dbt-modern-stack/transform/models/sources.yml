@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw IMDb extracts loaded by `dwh seed` into the DuckDB warehouse."
+    schema: raw
+    # Source freshness: IMDb republishes daily. Warn after 36h, error after 48h.
+    # `dbt source freshness` checks this; the orchestrator mirrors it as a gate.
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: { count: 36, period: hour }
+      error_after: { count: 48, period: hour }
+    tables:
+      - name: title_basics
+        description: "One row per title (tconst), with type, name, year, genres."
+        columns:
+          - name: tconst
+            description: "IMDb title identifier (natural key)."
+      - name: title_ratings
+        description: "One row per rated title: average rating and vote count."
+        columns:
+          - name: tconst
+            description: "IMDb title identifier; foreign key to title_basics."
+      - name: name_basics
+        description: "One row per person (nconst)."
+        # name_basics refreshes less often; relax its freshness window.
+        freshness:
+          warn_after: { count: 5, period: day }
+          error_after: { count: 7, period: day }
+        columns:
+          - name: nconst
+            description: "IMDb person identifier (natural key)."

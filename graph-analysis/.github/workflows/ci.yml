@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dev tooling and the package
+        run: |
+          python -m pip install --upgrade pip
+          # Install only what lint + the pure-numpy known-answer tests need.
+          # The Spark GraphFrames pipeline runs at scale in the Docker/pixi env.
+          pip install numpy pandas pyyaml pytest ruff mypy types-PyYAML
+          pip install --no-deps -e .
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: mypy (core, pure-python)
+        run: mypy src/bdgraph/pagerank.py src/bdgraph/components.py src/bdgraph/community.py src/bdgraph/triangles.py src/bdgraph/__init__.py
+
+      - name: Pytest (known-answer graph algorithms)
+        run: pytest -q

@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: dim_title
+    description: "Title dimension: one row per title with a surrogate key."
+    columns:
+      - name: title_key
+        description: "Surrogate key (hash of title_id). Warehouse-owned PK."
+        tests:
+          - not_null
+          - unique
+      - name: title_id
+        description: "Natural key (IMDb tconst)."
+        tests:
+          - not_null
+          - unique
+      - name: title_type
+        description: "Kind of title."
+        tests:
+          - not_null
+
+  - name: fct_title_rating
+    description: "Rating fact: one row per rated title, FK to dim_title."
+    columns:
+      - name: title_key
+        description: "Foreign key to dim_title.title_key."
+        tests:
+          - not_null
+          # Referential integrity: every fact row points at a real dimension row.
+          - relationships:
+              to: ref('dim_title')
+              field: title_key
+      - name: title_id
+        description: "Natural key; one rating row per title."
+        tests:
+          - not_null
+          - unique
+      - name: average_rating
+        description: "Mean user rating, 1.0-10.0."
+        tests:
+          - not_null
+      - name: rating_band
+        description: "Derived band for the BI layer."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["high", "medium", "low"]

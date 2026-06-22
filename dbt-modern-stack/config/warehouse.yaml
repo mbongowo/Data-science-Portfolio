@@ -1,0 +1,44 @@
+# Warehouse, source, schedule, and freshness configuration for dbt-modern-stack.
+# Everything that defines "where the data lives and how fresh it must be" is
+# here; the orchestration layer and the dq CLI read it.
+
+# --------------------------------------------------------------------------- #
+# Warehouse target
+# --------------------------------------------------------------------------- #
+warehouse:
+  # DuckDB is the default sandbox warehouse: a single file, zero infra.
+  # Swap to a BigQuery sandbox or a Snowflake trial by changing the dbt profile
+  # in transform/profiles.example.yml; the models are warehouse-agnostic.
+  target: duckdb
+  duckdb_path: "data/warehouse.duckdb"
+  raw_schema: raw
+
+# --------------------------------------------------------------------------- #
+# Raw sources (IMDb datasets; gzipped TSV with "\N" for NULL)
+# --------------------------------------------------------------------------- #
+sources:
+  title_basics:
+    path: "data/raw/title.basics.tsv"
+    max_age_hours: 48
+  title_ratings:
+    path: "data/raw/title.ratings.tsv"
+    max_age_hours: 48
+  name_basics:
+    path: "data/raw/name.basics.tsv"
+    max_age_hours: 168
+
+# --------------------------------------------------------------------------- #
+# Schedule (orchestrator)
+# --------------------------------------------------------------------------- #
+schedule:
+  # IMDb refreshes daily; build a couple of hours after their publish window.
+  cron: "0 6 * * *"
+  timezone: "UTC"
+
+# --------------------------------------------------------------------------- #
+# Source freshness thresholds (the DAG fails fast if raw data is stale)
+# --------------------------------------------------------------------------- #
+freshness:
+  # Default applied to any source without its own max_age_hours above.
+  max_age_hours: 48
+  warn_after_hours: 36

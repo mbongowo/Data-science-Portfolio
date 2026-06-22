@@ -1,0 +1,46 @@
+# Graph and algorithm configuration for graph-analysis.
+# Everything that changes "what" is analysed lives here; the code reads it.
+
+# --------------------------------------------------------------------------- #
+# Input graph
+# --------------------------------------------------------------------------- #
+graph:
+  # Edge list: one edge per line, whitespace- or comma-separated "src dst".
+  # Lines beginning with '#' are treated as comments (SNAP files use them).
+  edge_file: "data/raw/soc-LiveJournal1.txt"
+  directed: true            # PageRank respects direction; triangles/components
+                            # treat the graph as undirected (see USAGE.md)
+  comment: "#"              # comment prefix to skip while reading
+  delimiter: null           # null => split on any whitespace
+
+# --------------------------------------------------------------------------- #
+# PageRank (power iteration)
+# --------------------------------------------------------------------------- #
+pagerank:
+  damping: 0.85             # teleport probability is 1 - damping
+  max_iter: 100
+  tol: 1.0e-9               # L1 change between iterations to stop
+  top_k: 20                 # how many top-ranked nodes to report
+
+# --------------------------------------------------------------------------- #
+# Communities
+# --------------------------------------------------------------------------- #
+communities:
+  method: "label_propagation"   # label_propagation | connected_components
+  max_iter: 10
+  seed: 0                       # fixed seed => deterministic labels
+
+# --------------------------------------------------------------------------- #
+# Triangles / clustering
+# --------------------------------------------------------------------------- #
+triangles:
+  per_node: false               # also write per-node triangle counts
+
+# --------------------------------------------------------------------------- #
+# Which algorithms the CLI runs in a full pass
+# --------------------------------------------------------------------------- #
+algorithms:
+  - pagerank
+  - connected_components
+  - label_propagation
+  - triangle_count

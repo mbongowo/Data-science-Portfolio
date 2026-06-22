@@ -1,0 +1,47 @@
+# pixi.toml — environment for dbt-modern-stack.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[workspace]
+name = "dbt-modern-stack"
+version = "0.1.0"
+description = "Modern data stack: batch ETL -> DuckDB warehouse -> layered dbt models with tests -> orchestration -> BI."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+duckdb = ">=1.0"
+pyarrow = ">=15.0"
+
+[pypi-dependencies]
+# Install the package itself (editable), plus dbt which resolves cleanly from pip.
+dbt-modern-stack = { path = ".", editable = true }
+dbt-core = ">=1.7"
+dbt-duckdb = ">=1.7"
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+ipykernel = ">=6.29"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+# Load the raw IMDb extracts into the DuckDB warehouse.
+seed = "dwh seed --config config/warehouse.yaml"
+# Build all dbt models and run the generic + singular tests.
+build = "dbt build --project-dir transform --profiles-dir transform"
+# Run the pure-pandas data-quality core (mirrors dbt generic tests).
+dq = "dwh dq --config config/warehouse.yaml"

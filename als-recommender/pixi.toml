@@ -1,0 +1,44 @@
+# pixi.toml — conda-forge environment for als-recommender.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[workspace]
+name = "als-recommender"
+version = "0.1.0"
+description = "Matrix-factorisation recommender: ALS, ranking metrics, popularity baseline, Spark MLlib ALS wrapper."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+pyspark = ">=3.5"
+pyarrow = ">=14.0"
+scipy = ">=1.11"
+
+[pypi-dependencies]
+# Install the package itself (editable) into the environment.
+als-recommender = { path = ".", editable = true }
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+ipykernel = ">=6.29"
+jupyterlab = ">=4.0"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+train = "recsys train --config config/movielens.yaml"
+recommend = "recsys recommend --config config/movielens.yaml"
+evaluate = "recsys evaluate --config config/movielens.yaml"

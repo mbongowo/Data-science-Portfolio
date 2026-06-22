@@ -1,0 +1,23 @@
+# pip fallback. Prefer `pixi install` (conda-forge) for a clean PySpark + JVM
+# setup. The pure-numpy core (recsys.als, recsys.metrics, recsys.baseline,
+# recsys.split) needs only numpy + pandas + pyyaml; PySpark is only required for
+# the distributed MLlib ALS wrapper (recsys.spark_als).
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# Scale-out ALS (Spark MLlib). Needs a JVM on PATH.
+pyspark>=3.5
+pyarrow>=14.0
+scipy>=1.11
+
+# Dev / CI
+pytest>=8.0
+ruff>=0.6
+mypy>=1.10
+pre-commit>=3.7

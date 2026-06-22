@@ -19,6 +19,14 @@ jobs:
           - geoai-segmentation
           - disturbance-detection
           - eo-explorer-app
+          - clickstream-pipeline
+          - log-anomaly
+          - als-recommender
+          - sentiment-scale
+          - tlc-analytics
+          - dbt-modern-stack
+          - crypto-backtest
+          - graph-analysis
     steps:
       - uses: actions/checkout@v4
 

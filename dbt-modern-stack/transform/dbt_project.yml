@@ -1,0 +1,31 @@
+name: "imdb_dwh"
+version: "0.1.0"
+config-version: 2
+
+# This profile name must exist in profiles.yml (see profiles.example.yml).
+profile: "imdb_dwh"
+
+# Standard dbt layout. The staging -> intermediate -> marts layering is enforced
+# by folder, with a different materialization per layer.
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  imdb_dwh:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

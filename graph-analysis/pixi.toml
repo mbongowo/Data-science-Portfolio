@@ -1,0 +1,49 @@
+# pixi.toml — conda-forge environment for graph-analysis.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[workspace]
+name = "graph-analysis"
+version = "0.1.0"
+description = "Large-scale graph analytics: PageRank, components, label propagation, triangle counting."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+# The pure-numpy core needs only numpy/pandas/pyyaml; the rest are for the
+# Spark GraphFrames pipeline and the small-subgraph visualisation wrapper.
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+pyarrow = ">=14.0"
+pyspark = ">=3.5"
+networkx = ">=3.2"
+matplotlib-base = ">=3.7"
+
+[pypi-dependencies]
+# Install the package itself (editable) into the environment, plus GraphFrames
+# (the Spark package is published on PyPI; the matching JAR loads at runtime).
+graph-analysis = { path = ".", editable = true }
+graphframes = ">=0.6"
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+ipykernel = ">=6.29"
+jupyterlab = ">=4.0"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+pagerank = "bdgraph pagerank --config config/graph.yaml --out outputs"
+communities = "bdgraph communities --config config/graph.yaml --out outputs"
+triangles = "bdgraph triangles --config config/graph.yaml --out outputs"

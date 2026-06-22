@@ -1,0 +1,47 @@
+# pixi.toml — conda-forge environment for sentiment-scale.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[workspace]
+name = "sentiment-scale"
+version = "0.1.0"
+description = "Scaled sentiment analysis: cleaning, lexicon vs model scoring, validation, trends."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+pyspark = ">=3.4"
+pyarrow = ">=14.0"
+scikit-learn = ">=1.3"
+matplotlib-base = ">=3.7"
+
+[pypi-dependencies]
+# Install the package itself (editable) into the environment, plus the
+# lexicon model that has no reliable conda-forge package.
+sentiment-scale = { path = ".", editable = true }
+vaderSentiment = ">=3.3"
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+ipykernel = ">=6.29"
+jupyterlab = ">=4.0"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+ingest = "sentiment ingest --config config/reddit.yaml --out data/raw"
+score = "sentiment score --config config/reddit.yaml --data data/raw --out outputs"
+trends = "sentiment trends --config config/reddit.yaml --data outputs --out outputs"

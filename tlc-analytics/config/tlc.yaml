@@ -1,0 +1,52 @@
+# Configuration for tlc-analytics. Everything that changes "what" runs lives
+# here; the code reads it. The dataset is NYC TLC trip records as partitioned
+# Parquet — no geospatial columns are used (lat/long are dropped on ingest).
+
+# --------------------------------------------------------------------------- #
+# Data layout
+# --------------------------------------------------------------------------- #
+data:
+  # Root of the partitioned Parquet lake. Files are laid out as
+  #   <parquet_root>/year=<YYYY>/month=<MM>/*.parquet
+  parquet_root: "data/raw/yellow"
+  # Glob the engines expand against the lake (Hive-style partition discovery).
+  parquet_glob: "data/raw/yellow/year=*/month=*/*.parquet"
+  # Partition columns the lake is keyed on.
+  partition_columns: ["year", "month"]
+  # Years to include in the workload (billions of rows across all months).
+  years: [2019, 2020, 2021, 2022, 2023]
+
+# --------------------------------------------------------------------------- #
+# Cleaning rules (see src/tlc/clean.py for the exact predicates)
+# --------------------------------------------------------------------------- #
+clean:
+  fare_cap: 500.0            # drop fares above this (data-entry errors / disputes)
+
+# --------------------------------------------------------------------------- #
+# Engines under test in the bake-off
+# --------------------------------------------------------------------------- #
+engines:
+  - duckdb                  # single-node, in-process, vectorised
+  - spark                   # distributed; run on a cluster for the full lake
+  - warehouse               # managed columnar warehouse (BigQuery / Snowflake)
+
+# --------------------------------------------------------------------------- #
+# Aggregation queries benchmarked across every engine. Each maps to one mart
+# in src/tlc/marts.py; the same logical workload is run three ways.
+# --------------------------------------------------------------------------- #
+queries:
+  - name: "hourly_demand"
+    description: "Trip counts by pickup hour of day (0-23)."
+  - name: "demand_by_dow"
+    description: "Trip counts by day of week (0=Mon .. 6=Sun)."
+  - name: "tip_rate_by_payment"
+    description: "Mean tip percentage by payment type."
+  - name: "fare_summary"
+    description: "Count, mean/median fare and mean trip duration."
+
+# --------------------------------------------------------------------------- #
+# Benchmark harness settings
+# --------------------------------------------------------------------------- #
+benchmark:
+  repeats: 3                # timed repeats per (engine, query); report the median
+  warm_cache: true          # discard one untimed warm-up run before timing

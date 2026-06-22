@@ -1,0 +1,25 @@
+# pip fallback. The tested core needs only numpy/pandas/pyyaml/typer; the rest
+# powers the Kafka + Spark streaming layer and the Streamlit dashboard. Prefer
+# `pixi install` (conda-forge) for the streaming stack — pyspark pulls a JVM.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+typer>=0.12
+
+# Streaming layer (Kafka producer/consumer + Spark Structured Streaming)
+pyspark>=3.5
+kafka-python>=2.0
+duckdb>=1.0
+pyarrow>=15.0
+streamlit>=1.36
+
+# Dev / CI
+pytest>=8.0
+ruff>=0.6
+mypy>=1.10
+pre-commit>=3.7

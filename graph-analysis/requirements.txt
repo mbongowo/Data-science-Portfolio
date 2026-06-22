@@ -1,0 +1,21 @@
+# pip fallback. Prefer `pixi install` (conda-forge) for the Spark stack —
+# pyspark pulls a JVM dependency and graphframes needs a matching Spark JAR.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+pyarrow>=14.0
+pyspark>=3.5
+networkx>=3.2
+matplotlib>=3.7
+graphframes>=0.6
+
+# Dev / CI
+pytest>=8.0
+ruff>=0.6
+mypy>=1.10
+pre-commit>=3.7

@@ -1,0 +1,57 @@
+# Strategy and backtest configuration for crypto-backtest.
+# Everything that changes "what" is tested lives here; the code reads it.
+
+# --------------------------------------------------------------------------- #
+# Data / instrument
+# --------------------------------------------------------------------------- #
+data:
+  symbols: ["BTCUSDT"]        # one or more symbols (single-asset by default)
+  # Raw Binance trade dumps: columns id, price, qty, quote_qty, time, ...
+  # The ingest step keeps (timestamp, price, size) and partitions to Parquet.
+  price_column: "price"
+  size_column: "qty"
+  time_column: "time"        # epoch milliseconds in Binance dumps
+  time_unit: "ms"
+
+# --------------------------------------------------------------------------- #
+# Bars (resampling rule)
+# --------------------------------------------------------------------------- #
+bars:
+  rule: "1min"               # any pandas offset alias: 1min, 5min, 1h, ...
+  # Bars are labelled and closed on the LEFT edge of each interval, so a bar
+  # timestamped 09:00 covers trades in [09:00, 09:01). The engine then acts on
+  # the NEXT bar, which is what prevents look-ahead.
+
+# --------------------------------------------------------------------------- #
+# Indicators
+# --------------------------------------------------------------------------- #
+indicators:
+  fast: 10                   # fast SMA window (bars)
+  slow: 30                   # slow SMA window (bars)
+  rsi: 14                    # RSI window (Wilder smoothing)
+  vol: 30                    # rolling-volatility window for sizing/diagnostics
+
+# --------------------------------------------------------------------------- #
+# Strategy (simple SMA crossover, long/flat)
+# --------------------------------------------------------------------------- #
+strategy:
+  name: "sma_crossover"
+  # Long (signal = 1) when fast SMA > slow SMA, else flat (signal = 0).
+  # Signals are generated on the bar's close and EXECUTED on the next bar's
+  # close by the engine (see strategy.py / engine.py). No shorting by default.
+  allow_short: false
+
+# --------------------------------------------------------------------------- #
+# Costs (applied on every position change)
+# --------------------------------------------------------------------------- #
+costs:
+  fee_bps: 10.0              # round-trip-ish taker fee per traded notional, bps
+  slippage_bps: 5.0          # assumed slippage per fill, bps
+
+# --------------------------------------------------------------------------- #
+# Performance
+# --------------------------------------------------------------------------- #
+performance:
+  # Bars per year for annualising the Sharpe ratio. For 1-minute crypto bars
+  # the market trades 24/7: 365 * 24 * 60 = 525600.
+  periods_per_year: 525600

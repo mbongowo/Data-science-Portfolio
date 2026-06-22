@@ -1,0 +1,55 @@
+# Configuration for sentiment-scale.
+# Everything that changes "what" is analysed lives here; the code reads it.
+
+# --------------------------------------------------------------------------- #
+# Corpus (which Reddit dumps, which window)
+# --------------------------------------------------------------------------- #
+corpus:
+  # Subreddits to include. Each is expected as a compressed Pushshift dump
+  # (e.g. data/raw/<subreddit>_comments.zst) discovered by the ingest step.
+  subreddits:
+    - "technology"
+    - "science"
+  # Inclusive date range (UTC) used to filter documents after load.
+  date_range:
+    start: "2019-01-01"
+    end: "2019-12-31"
+  # Field carrying the text to score ("body" for comments, "selftext"/"title"
+  # for submissions).
+  text_field: "body"
+
+# --------------------------------------------------------------------------- #
+# Cleaning
+# --------------------------------------------------------------------------- #
+clean:
+  # Drop documents with fewer than this many tokens after normalisation; very
+  # short texts are noisy for any scorer.
+  min_token_count: 3
+
+# --------------------------------------------------------------------------- #
+# Scoring
+# --------------------------------------------------------------------------- #
+scoring:
+  scorer: "lexicon"          # one of: lexicon | model
+  # Lexicon options
+  lexicon:
+    negation_window: 3       # flip valence of tokens within N after a negation
+    alpha: 15.0              # VADER-style normalisation constant
+  # Model options (used when scorer == "model"); inference happens in Spark.
+  model:
+    name: "vader"            # vaderSentiment compound score
+    batch_size: 1024
+
+# --------------------------------------------------------------------------- #
+# Aggregation
+# --------------------------------------------------------------------------- #
+aggregation:
+  freq: "weekly"             # one of: daily | weekly
+
+# --------------------------------------------------------------------------- #
+# Topics (TF-IDF + clustering)
+# --------------------------------------------------------------------------- #
+topics:
+  enabled: true
+  n_clusters: 8
+  top_terms: 12

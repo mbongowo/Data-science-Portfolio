@@ -1,0 +1,15 @@
+# Copy this to ~/.dbt/profiles.yml (or pass --profiles-dir transform) and adjust.
+# The default sandbox warehouse is DuckDB: one file, no infrastructure.
+#
+# To target a BigQuery sandbox or a Snowflake trial instead, replace the
+# `type:` block with the matching adapter config; the models do not change.
+
+imdb_dwh:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Same file the `dwh seed` step writes; raw.* tables are the sources.
+      path: "../data/warehouse.duckdb"
+      schema: main
+      threads: 4

@@ -1,0 +1,49 @@
+# pixi.toml — conda-forge environment for clickstream-pipeline.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[workspace]
+name = "clickstream-pipeline"
+version = "0.1.0"
+description = "Event-time stream processing: windows, sessions, funnels, watermarks; pure-Python core + guarded Kafka/Spark layer."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+# The tested core needs only numpy/pandas/pyyaml; the rest powers the streaming
+# layer and the dashboard. pyspark + duckdb resolve cleanly from conda-forge.
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+typer = ">=0.12"
+pyspark = ">=3.5"
+duckdb = ">=1.0"
+pyarrow = ">=15.0"
+streamlit = ">=1.36"
+
+[pypi-dependencies]
+# Install the package itself (editable) plus the Kafka client (pip-only).
+clickstream-pipeline = { path = ".", editable = true }
+kafka-python = ">=2.0"
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+ipykernel = ">=6.29"
+jupyterlab = ">=4.0"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+produce = "python -m clickstream.pipeline"
+consume = "python -c \"from clickstream.pipeline import consume_events; print(len(consume_events(topic='clickstream.events')))\""
+dashboard = "streamlit run app/dashboard.py"

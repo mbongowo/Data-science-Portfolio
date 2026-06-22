@@ -1,0 +1,216 @@
+# Usage guide: the engine bake-off
+
+This guide walks through one pass of the workflow: install the stack, lay out
+the TLC Parquet lake, build the aggregated mart from the pure-pandas reference
+path, run the same workload through the engines, benchmark and rank them, read
+the insight charts, and keep the honest limits in view.
+
+The pure-pandas core (`clean_trips` and the four marts) runs with only
+numpy/pandas installed and is the source of truth for the workload. The engine
+runners (`run_duckdb`, `run_spark`) need the heavier stack described below and
+import it lazily, so the core and the test suite run without it.
+
+## 1. Install
+
+```bash
+pixi install        # resolves dependencies and writes pixi.lock locally
+pixi run test       # confirm the install: the known-answer suite should pass
+```
+
+If you prefer pip:
+
+```bash
+python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+pip install -e .
+```
+
+A quick check that the pure core is importable without the engine stack:
+
+```bash
+python -c "import pandas; from tlc import clean_trips, hourly_demand; print('ok')"
+```
+
+## 2. Lay out the Parquet lake
+
+The engines expect a Hive-partitioned lake keyed on `year` and `month`:
+
+```
+data/raw/yellow/
+  year=2023/
+    month=01/yellow_tripdata_2023-01.parquet
+    month=02/yellow_tripdata_2023-02.parquet
+    ...
+```
+
+Download links and a copy-paste download loop are in
+[`data/README.md`](data/README.md). The partition columns matter: both DuckDB
+(`hive_partitioning = true`) and Spark discover `year` and `month` from the path
+and can **prune** partitions, so a query restricted to a year never touches the
+other years' files. That pruning is a large part of why the scan is fast at all,
+and it is configured under `data:` in `config/tlc.yaml`.
+
+No geospatial columns are read. The latitude/longitude (or zone-ID) columns are
+ignored; the workload is fares, tips, duration, payment type, and demand.
+
+## 3. Clean the trips
+
+The cleaning predicates are explicit and documented in `src/tlc/clean.py`. A row
+is kept only if **all** hold:
+
+| Predicate | Drops | Why |
+|---|---|---|
+| `fare_amount > 0` | zero / negative fares | voided or mis-logged trips |
+| `passenger_count > 0` | zero-passenger trips | logging artefacts |
+| `dropoff > pickup` | non-positive duration | clock / ordering errors |
+| `fare_amount <= fare_cap` | fares above the cap (default 500) | data-entry errors, disputes |
+
+Two derived columns are added to the survivors:
+
+- `trip_minutes` — duration in minutes, `(dropoff - pickup)`.
+- `tip_pct` — `tip_amount / fare_amount`, a fraction of the fare (not a percent).
+
+```python
+import pandas as pd
+from tlc.clean import clean_trips
+
+raw = pd.read_parquet("data/raw/yellow/year=2023/month=01/yellow_tripdata_2023-01.parquet")
+trips = clean_trips(raw, fare_cap=500.0)
+```
+
+The same filter is expressed in SQL / Spark inside the engine runners; the
+pandas version here is the reference the tests pin down.
+
+## 4. Build the mart (pandas reference path)
+
+The four marts each take a cleaned frame and return a small aggregated frame:
+
+```python
+from tlc import (
+    hourly_demand,       # trips by pickup hour (0-23)
+    demand_by_dow,       # trips by day of week (0=Mon .. 6=Sun)
+    tip_rate_by_payment, # mean tip_pct by payment type
+    fare_summary,        # count, mean/median fare, mean trip_minutes
+)
+
+hourly_demand(trips)
+tip_rate_by_payment(trips)
+```
+
+Or run them all and persist to `outputs/`:
+
+```bash
+tlc mart --config config/tlc.yaml --out outputs
+```
+
+This reads the lake, cleans it, and writes one Parquet per mart. These are the
+small tables you chart, and the answers the engine runs must reproduce.
+
+## 5. The same workload, three ways
+
+The point of the project is to run the *identical* aggregation through different
+engines and compare. The pandas marts are the reference; `engines.py` runs the
+same logic where the data actually lives.
+
+**DuckDB** — in-process, vectorised, no cluster. Best single-machine choice for
+a multi-year scan:
+
+```python
+from tlc.engines import run_duckdb
+
+sql = """
+  SELECT EXTRACT(hour FROM tpep_pickup_datetime) AS hour, COUNT(*) AS trips
+  FROM {glob}
+  WHERE fare_amount > 0 AND passenger_count > 0
+  GROUP BY 1 ORDER BY 1
+"""
+hourly = run_duckdb(sql, "data/raw/yellow/year=*/month=*/*.parquet")
+```
+
+**Spark** — for when the lake outgrows one machine. Reuse a cluster
+`SparkSession` for a realistic distributed run; the local default carries JVM
+and shuffle overhead with none of the upside:
+
+```python
+from tlc.engines import run_spark
+
+sql = """
+  SELECT hour(tpep_pickup_datetime) AS hour, COUNT(*) AS trips
+  FROM trips
+  WHERE fare_amount > 0 AND passenger_count > 0
+  GROUP BY 1 ORDER BY 1
+"""
+hourly = run_spark(sql, "data/raw/yellow/", spark=existing_session)
+```
+
+**Warehouse** — load the Parquet into a managed columnar warehouse (BigQuery,
+Snowflake) and run the same SQL. Zero infra to operate; billed per scan.
+
+## 6. Benchmark and rank
+
+The harness is pure and testable. Time a callable and rank the results:
+
+```python
+from functools import partial
+from tlc.benchmark import time_callable, BenchmarkResult, summarize
+
+results = []
+for engine, fn in runners.items():       # fn is a zero-arg callable per engine
+    _, seconds = time_callable(fn)
+    results.append(BenchmarkResult(engine=engine, query="hourly_demand", seconds=seconds))
+
+ranking = summarize(results)             # sorted fastest-first, with a dense rank
+```
+
+Method that keeps the numbers honest:
+
+- **Discard a warm-up.** Run each (engine, query) once untimed so the OS page
+  cache and any engine JIT are warm, then time the next runs.
+- **Repeat and take the median.** `benchmark.repeats` in the config; the median
+  is robust to a single slow run.
+- **Record memory and cost beside runtime.** Fastest is not cheapest. A
+  warehouse can win on wall-clock and lose on dollars; local Spark is free but
+  slow. The `peak_mb` field and a cost column carry that.
+- **Report the cache state.** Cold vs warm is a several-fold swing; say which
+  you measured.
+
+`tlc benchmark --config config/tlc.yaml --out outputs` writes the ranking to
+`outputs/benchmark.csv`.
+
+## 7. Read the insight charts
+
+Two readings come straight out of the marts:
+
+- **Tip rate by payment type.** Card mean `tip_pct` is meaningfully positive;
+  cash is ~0. That is a *measurement* fact — the meter does not record cash tips
+  — not a behavioural one. Do not read "cash riders don't tip" off this chart.
+- **Demand by hour / day of week.** Pickups are bimodal: an evening commute hump
+  and a late-night weekend hump. The day-of-week mart separates the weekday and
+  weekend shapes. Hours with no trips are simply absent from the frame (no
+  zero-fill), so a missing hour means no data, not zero demand-after-cleaning.
+
+## 8. How to interpret responsibly
+
+The bake-off measures one workload on one setup. A few limits travel with any
+result.
+
+**It is hardware-specific.** The ranking reflects this machine's cores, RAM, and
+disk. More cores or faster NVMe can reorder the engines. The number is a
+property of the run, not of the engine in the abstract.
+
+**Single-machine is not a cluster.** Local Spark pays JVM startup and shuffle
+costs with none of the distributed payoff. The honest case for Spark is a lake
+that does not fit on one box; that is a different experiment than the one a
+laptop runs.
+
+**Cold and warm cache differ severalfold.** The OS page cache and the
+warehouse's result cache dominate timings. Discard a warm-up, report the median,
+and state the cache regime — but treat the regime itself as part of the result.
+
+**The crossover depends on data size.** The fastest engine at one month need not
+win at five years. There are size thresholds where the ranking flips, and a
+single run does not locate them. Sweep the dataset size before generalising.
+
+**The workload is narrow.** These are scan-and-group-by aggregations. Joins,
+window functions, and point lookups stress engines differently and would rank
+them differently. Do not extrapolate this ranking to a different query shape.

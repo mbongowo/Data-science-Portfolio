@@ -1,0 +1,47 @@
+# Configuration for als-recommender on MovieLens-25M.
+# Everything that changes "what" and "how" is trained lives here; the code reads
+# it. Defaults target the MovieLens-25M ratings file.
+
+# --------------------------------------------------------------------------- #
+# Data
+# --------------------------------------------------------------------------- #
+data:
+  # CSV with columns userId, movieId, rating, timestamp (MovieLens schema).
+  ratings_path: "data/raw/ml-25m/ratings.csv"
+  user_col: "userId"
+  item_col: "movieId"
+  rating_col: "rating"
+  timestamp_col: "timestamp"
+
+# --------------------------------------------------------------------------- #
+# Train / validation / test split
+# --------------------------------------------------------------------------- #
+# Random holdout per user: each user's interactions are partitioned so that the
+# user appears in train and (where they have enough ratings) in val/test. The
+# seed makes the split deterministic.
+split:
+  val_ratio: 0.1
+  test_ratio: 0.1
+  seed: 42
+
+# --------------------------------------------------------------------------- #
+# ALS hyperparameters
+# --------------------------------------------------------------------------- #
+als:
+  rank: 32          # latent dimension (number of factors)
+  reg: 0.1          # L2 ridge penalty on the factors
+  iters: 15         # alternating least-squares sweeps
+  seed: 0           # factor initialisation seed (reproducible)
+
+# --------------------------------------------------------------------------- #
+# Top-N recommendation / evaluation
+# --------------------------------------------------------------------------- #
+eval:
+  k: 10             # cut-off for Precision@K / Recall@K / NDCG@K
+  relevant_threshold: 4.0   # a held-out rating >= this counts as relevant
+
+# --------------------------------------------------------------------------- #
+# Outputs
+# --------------------------------------------------------------------------- #
+output:
+  dir: "outputs"

@@ -1,0 +1,43 @@
+# pixi.toml — conda-forge environment for tlc-analytics.
+# Run `pixi install` to resolve and generate pixi.lock (NOT committed here;
+# the lock is machine-generated). See README for details.
+
+[workspace]
+name = "tlc-analytics"
+version = "0.1.0"
+description = "NYC TLC trip-record analytics: a tabular engine bake-off (Spark vs DuckDB vs warehouse)."
+authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = ">=3.10,<3.13"
+numpy = ">=1.24"
+pandas = ">=2.0"
+pyyaml = ">=6.0"
+pyarrow = ">=14.0"
+duckdb = ">=0.10"
+pyspark = ">=3.5"
+
+[pypi-dependencies]
+# Install the package itself (editable) into the environment.
+tlc-analytics = { path = ".", editable = true }
+
+[feature.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+mypy = ">=1.10"
+pre-commit = ">=3.7"
+typer = ">=0.12"
+ipykernel = ">=6.29"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+test = "pytest"
+lint = "ruff check . && mypy src"
+format = "ruff format ."
+mart = "tlc mart --config config/tlc.yaml --out outputs"
+benchmark = "tlc benchmark --config config/tlc.yaml --out outputs"
