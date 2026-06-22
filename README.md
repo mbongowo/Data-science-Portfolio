@@ -24,7 +24,7 @@ the flagship does, so the projects visibly compose rather than repeat.
 | 3 | [`spatial-hotspots`](./spatial/spatial-hotspots) | Exploratory spatial data analysis: spatial weights, global and local autocorrelation, cluster and outlier maps, with the interpretation written out and the limits stated. | Spatial statistics and significance |
 | 4 | [`geoai-segmentation`](./spatial/geoai-segmentation) | A semantic-segmentation model on Earth-observation imagery, set up so a reported number can be reproduced from the committed seed, config, and checkpoint. | Reproducible deep learning + model card |
 | 5 | [`disturbance-detection`](./spatial/disturbance-detection) | A multi-year NDVI time cube, a per-pixel seasonal-trend fit, breakpoint detection, and maps of the date and size of disturbance, checked against a recorded event. | Time-series change detection |
-| 6 | [`eo-explorer-app`](./spatial/eo-explorer-app) | A web app where you draw an area, pick a date and an index, and see live Sentinel-2 rendered on a map. The index code is imported from `eo-monitor`. | A deployable interactive app |
+| 6 | [`eo-explorer-app`](./spatial/eo-explorer-app) | A web app where you draw an area, pick a date and an index, and see live Sentinel-2 rendered on a map. The index code is imported from `eo-monitor`. **[▶ Live demo](https://data-science-portfolio-kpnqhpxmfzgwpgwbxkejql.streamlit.app/)** | A deployable interactive app |
 
 `eo-explorer-app` depends on `eo-monitor` and calls its index functions directly,
 so the app and the pipeline share one definition of NDVI rather than two copies.

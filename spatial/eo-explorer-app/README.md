@@ -1,7 +1,8 @@
 # 🛰️ EO Explorer
 
-> **Live demo:** TODO — add the deployed URL here after the first deploy.
-> Target hosts: Streamlit Community Cloud, Hugging Face Spaces, or Fly.io.
+> **Live demo:** <https://data-science-portfolio-kpnqhpxmfzgwpgwbxkejql.streamlit.app/>
+> (Streamlit Community Cloud; the free tier sleeps after inactivity, so the first
+> load may take a few seconds to wake.)
 
 <!-- TODO (after deploy): replace docs/screenshot.png with a real screenshot of the running app. -->
 ![EO Explorer screenshot](docs/screenshot.png)
