@@ -152,6 +152,17 @@ Below the map, four numbers summarise the layer: the minimum, mean, and maximum
 index value, and the fraction of pixels that carried valid data. A low valid
 fraction usually means clouds covered much of the scene; try another date.
 
+### Downloading the result
+
+Next to the statistics is a **Download GeoTIFF** button. It saves the computed
+index as a georeferenced GeoTIFF: the raw index values (not the coloured
+display image), kept in the scene's native projected CRS with no resampling,
+written as float32 with NaN as the nodata value, tiled and LZW-compressed. The
+file name carries the index and the scene id, e.g. `NDVI_S2A_..._L2A.tif`. Open
+it directly in QGIS, ArcGIS, `rasterio`, `rioxarray`, or GDAL for your own
+analysis; the colour ramp in the app is only for display and is not baked into
+the download.
+
 ## Caching
 
 Every scene search and band load is cached with Streamlit's `st.cache_data`,

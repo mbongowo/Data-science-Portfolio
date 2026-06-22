@@ -629,6 +629,7 @@ def build_index_overlay(
     Image.fromarray(rgba, mode="RGBA").save(buffer, format="PNG")
     image_uri = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
+    meta_dict = dict(meta or {})
     return {
         "image_uri": image_uri,
         "bounds": _latlon_bounds(data_latlon),
@@ -639,8 +640,54 @@ def build_index_overlay(
         "colormap": spec.colormap,
         "opacity": float(opacity),
         "stats": index_stats(data),
-        "meta": dict(meta or {}),
+        "meta": meta_dict,
+        # Analysis-ready raster of the raw index values, for download. Kept in the
+        # native projected CRS with no resampling (unlike the lon/lat display PNG).
+        "geotiff": index_to_geotiff_bytes(data, spec.name),
+        "geotiff_name": _geotiff_filename(spec.name, meta_dict),
     }
+
+
+def index_to_geotiff_bytes(data, name: str = "index") -> bytes:
+    """Serialise a computed index ``DataArray`` to a georeferenced GeoTIFF.
+
+    The array keeps its native projected CRS (EPSG:3857 as loaded by
+    ``stac.load_scene``) with no resampling, written as float32 with NaN nodata,
+    tiled and LZW-compressed. Returned as raw bytes so the app can offer it via
+    ``st.download_button`` without writing to a served path. Requires
+    ``rioxarray`` / ``rasterio``; the heavy import is lazy, inside the function,
+    so importing this module stays dependency-free for the test suite.
+    """
+    import os
+    import tempfile
+
+    import rioxarray  # noqa: F401 - registers the .rio accessor
+
+    arr = data
+    if arr.rio.crs is None:
+        arr = arr.rio.write_crs("EPSG:3857")
+    arr = arr.astype("float32")
+    arr.rio.write_nodata(float("nan"), inplace=True)
+    arr.name = str(name).upper()
+
+    fd, path = tempfile.mkstemp(suffix=".tif")
+    os.close(fd)
+    try:
+        arr.rio.to_raster(path, driver="GTiff", compress="LZW", tiled=True)
+        with open(path, "rb") as fh:
+            return fh.read()
+    finally:
+        try:
+            os.remove(path)
+        except OSError:  # pragma: no cover - best-effort temp cleanup
+            pass
+
+
+def _geotiff_filename(name: str, meta: dict) -> str:
+    """Build a download filename like ``NDVI_<scene-id-or-date>.tif`` from metadata."""
+    tag = str(meta.get("id") or (meta.get("datetime") or "")[:10] or "scene")
+    safe = "".join(c if (c.isalnum() or c in "-_") else "_" for c in tag)
+    return f"{name}_{safe}.tif"
 
 
 def add_overlay_legend(folium_map, overlay: dict) -> None:

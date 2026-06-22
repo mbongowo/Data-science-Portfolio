@@ -49,6 +49,9 @@ copy-pasted.
    scales DN to surface reflectance in `[0, 1]`, computes the index with
    `eo-monitor`, and draws it as a coloured folium `ImageOverlay` with a legend
    and min/mean/max statistics.
+6. **Download.** Save the result as a georeferenced **GeoTIFF** (the raw index
+   values in the native projected CRS, float32 with NaN nodata, LZW-compressed) —
+   open it straight in QGIS, `rasterio`, or GDAL.
 
 ### Supported indices
 

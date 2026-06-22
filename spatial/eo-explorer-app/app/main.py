@@ -309,6 +309,19 @@ def _show_result() -> None:
         col3.metric(f"{name} max", f"{stats['max']:.3f}")
         col4.metric("Valid pixels", f"{stats['valid_fraction'] * 100:.0f}%")
 
+    geotiff = overlay.get("geotiff")
+    if geotiff:
+        st.download_button(
+            "⬇ Download GeoTIFF",
+            data=geotiff,
+            file_name=overlay.get("geotiff_name", f"{overlay['name']}.tif"),
+            mime="image/tiff",
+            help=(
+                "The computed index as a georeferenced GeoTIFF (native projected "
+                "CRS, float32, NaN nodata) — drop it straight into QGIS or rasterio."
+            ),
+        )
+
 
 if __name__ == "__main__":
     main()

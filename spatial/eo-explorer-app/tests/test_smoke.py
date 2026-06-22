@@ -530,6 +530,37 @@ def test_colorize_clips_out_of_range_values():
     assert tuple(int(v) for v in rgba[0, 0]) == tuple(int(v) for v in rgba[0, 1])
 
 
+def test_geotiff_filename_is_sanitised():
+    # Pure helper: no geo deps. Scene id is used when present, sanitised.
+    assert (
+        render._geotiff_filename("NDVI", {"id": "S2A_36MYE_20240605_0_L2A"})
+        == "NDVI_S2A_36MYE_20240605_0_L2A.tif"
+    )
+    # Falls back to the date (first 10 chars) when there is no id.
+    assert render._geotiff_filename("NBR", {"datetime": "2024-06-05T09:00:00Z"}) == "NBR_2024-06-05.tif"
+    # And to a constant when neither is present; odd characters are replaced.
+    assert render._geotiff_filename("EVI", {}) == "EVI_scene.tif"
+    assert render._geotiff_filename("NDWI", {"id": "a/b c"}) == "NDWI_a_b_c.tif"
+
+
+def test_index_to_geotiff_bytes_writes_valid_tiff():
+    """When rioxarray is installed, the helper returns real GeoTIFF bytes."""
+    np = pytest.importorskip("numpy")
+    xr = pytest.importorskip("xarray")
+    pytest.importorskip("rioxarray")  # registers the .rio accessor
+
+    data = xr.DataArray(
+        np.array([[0.1, 0.2], [0.3, np.nan]], dtype="float32"),
+        dims=("y", "x"),
+        coords={"y": [10.0, 0.0], "x": [0.0, 10.0]},
+    ).rio.write_crs("EPSG:3857")
+
+    raw = render.index_to_geotiff_bytes(data, "NDVI")
+    assert isinstance(raw, (bytes, bytearray)) and len(raw) > 0
+    # TIFF magic number, little- or big-endian.
+    assert raw[:4] in (b"II*\x00", b"MM\x00*")
+
+
 # --------------------------------------------------------------------------- #
 # stac geometry helpers: bbox_center / bbox_aspect_ratio / suggest_zoom
 # --------------------------------------------------------------------------- #
