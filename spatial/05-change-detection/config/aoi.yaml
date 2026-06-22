@@ -1,0 +1,47 @@
+# Area-of-interest and analysis configuration for the SAR flood-mapping pipeline.
+# Everything that changes "what" is analysed and how water is detected lives here;
+# the STAC / CLI code reads it. The dependency-free `demo` ignores this file and
+# synthesises its own fixed before/after backscatter pair.
+
+# --------------------------------------------------------------------------- #
+# Study area
+# --------------------------------------------------------------------------- #
+aoi:
+  name: "logone_far_north_cameroon"
+  description: >
+    The Logone-et-Chari floodplain in Cameroon's Far North region, around
+    Kousseri / the Logone river near the Lake Chad basin. This is one of the most
+    recurrently flood-affected areas in the country: seasonal rains and Logone
+    overspill inundate large areas of cropland and settlements (severe events in
+    2012, 2020, 2022, 2024). Keep the bbox a few tens of km across so the STAC
+    load and the masks stay tractable on a laptop. This is the default so the
+    project runs out of the box; point it anywhere by editing the bbox below.
+  # EPSG:4326 (lon/lat) bounding box on the Logone floodplain near Kousseri.
+  bbox:
+    min_lon: 14.85
+    min_lat: 11.95
+    max_lon: 15.10
+    max_lat: 12.20
+  # Projected CRS for area-correct measurement. The Far North sits in UTM 33N.
+  crs: "EPSG:32633"
+
+# --------------------------------------------------------------------------- #
+# Pre-flood and post-flood acquisition dates
+# --------------------------------------------------------------------------- #
+# A dry-season "pre" scene (channel + permanent water only) vs a peak-flood
+# "post" scene from the rainy-season inundation. Sentinel-1 GRD has a ~6-12 day
+# revisit; give a single date or a short `start/end` range to catch a pass.
+pre_date: "2024-05-15/2024-05-31"    # late dry season, low water
+post_date: "2024-09-15/2024-09-30"   # peak flood (rainy-season inundation)
+
+# --------------------------------------------------------------------------- #
+# Flood analysis
+# --------------------------------------------------------------------------- #
+analysis:
+  sensor: "S1"             # Sentinel-1 GRD SAR (default; sees through cloud)
+  orbit: "descending"      # keep ONE orbit so incidence angle is consistent
+  polarization: "VH"       # VH recommended for open water (strong land/water contrast)
+  threshold_method: "otsu" # automatic between-class-variance threshold on dB
+  pixel_size_m: 10.0       # Sentinel-1 GRD ground sample distance (m/px)
+  # Optical fallback (cloud-free days only): Sentinel-2 MNDWI, water = high index.
+  fallback_index: "mndwi"

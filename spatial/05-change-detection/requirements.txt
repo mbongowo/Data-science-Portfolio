@@ -1,0 +1,28 @@
+# The tested core (src/floodmap/threshold.py, water.py, change.py, demo.py) and
+# the whole test suite need ONLY the three packages in the first group below. The
+# "full pipeline" group is for the heavy STAC data path and the notebook; prefer
+# the conda env (environment.yml) for the geospatial stack, since GDAL/GEOS/PROJ
+# wheels via pip can be fragile.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+# --- Core + tests (numpy / pandas / pyyaml only) ---
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# --- Full pipeline (heavy; not needed for the core or tests) ---
+# Default auth-free real-data path: Sentinel-1 GRD (and S2 fallback) from Earth Search STAC.
+pystac-client>=0.7
+odc-stac>=0.3
+rioxarray>=0.15
+xarray>=2024.1
+rasterio>=1.3
+matplotlib>=3.7
+jupyterlab>=4.0
+
+# --- Dev / CI ---
+pytest>=8.0
+ruff>=0.6
