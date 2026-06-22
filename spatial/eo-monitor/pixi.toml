@@ -1,6 +1,6 @@
 [workspace]
 name = "eo-monitor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Config-driven Sentinel-2 vegetation/moisture anomaly monitoring (STAC -> COG)."
 authors = ["Joseph Mbuh <mbuhjoe48@gmail.com>"]
 channels = ["conda-forge"]

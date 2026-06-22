@@ -73,13 +73,23 @@ def _eo_func(name: str, fallback: Callable[..., Any] | None = None) -> Callable[
     safety net and never runs in the tested path.
     """
     if _eo_idx is not None:
-        return getattr(_eo_idx, name)
+        func = getattr(_eo_idx, name, None)
+        if func is not None:
+            return func
+        # eo-monitor is installed but older than this app and does not define
+        # this index. Degrade gracefully (fall through) instead of raising at
+        # import time, which would take the whole app down. A stale deployment
+        # cache is the usual cause.
+
     if fallback is not None:
         return fallback
 
     def _missing(*_args, **_kwargs):
         require_eo_monitor()
-        raise ImportError(f"eo-monitor index {name!r} is unavailable.")
+        raise ImportError(
+            f"eo-monitor index {name!r} is unavailable. The installed eo-monitor "
+            "is older than this app; reinstall it from this repository."
+        )
 
     return _missing
 

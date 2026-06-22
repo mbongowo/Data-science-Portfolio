@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eo-monitor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Config-driven Sentinel-2 vegetation/moisture anomaly monitoring from a STAC catalogue to Cloud-Optimised GeoTIFFs."
 readme = "README.md"
 license = { file = "LICENSE" }
