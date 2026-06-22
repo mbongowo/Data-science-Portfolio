@@ -15,14 +15,25 @@ package's ``__init__`` or by the test suite.
 
 from __future__ import annotations
 
-from tlc.benchmark import BenchmarkResult, summarize, time_callable
+from tlc.benchmark import (
+    BenchmarkResult,
+    bake_off,
+    duckdb_available,
+    run_duckdb_query,
+    summarize,
+    time_callable,
+)
 from tlc.clean import clean_trips
 from tlc.marts import (
+    anomaly_flags,
     demand_by_dow,
     fare_summary,
     hourly_demand,
+    revenue_by_day,
     tip_rate_by_payment,
+    trip_duration_buckets,
 )
+from tlc.partitions import iter_partitions, partition_relpath
 
 __all__ = [
     "clean_trips",
@@ -30,9 +41,17 @@ __all__ = [
     "demand_by_dow",
     "tip_rate_by_payment",
     "fare_summary",
+    "trip_duration_buckets",
+    "revenue_by_day",
+    "anomaly_flags",
+    "iter_partitions",
+    "partition_relpath",
     "time_callable",
     "summarize",
     "BenchmarkResult",
+    "bake_off",
+    "run_duckdb_query",
+    "duckdb_available",
     "__version__",
 ]
 

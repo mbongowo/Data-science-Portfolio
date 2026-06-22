@@ -1,10 +1,15 @@
 """Command-line entry point for als-recommender.
 
-Three subcommands drive the workflow from a YAML config:
+Subcommands drive the workflow from a YAML config:
 
     recsys train     --config config/movielens.yaml   # fit ALS factors
     recsys recommend --config config/movielens.yaml   # write top-N lists
     recsys evaluate  --config config/movielens.yaml   # ALS vs popularity
+    recsys demo                                        # synthetic end-to-end demo
+
+The ``demo`` subcommand needs no config or data: it synthesises a small seeded
+low-rank ratings set and drives the real numpy core (ALS, baseline, metrics)
+end-to-end in seconds, with no PySpark.
 
 The heavy imports (pandas, the Spark wrapper) happen inside the command bodies
 so that importing this module never requires the full stack. ``typer`` itself is
@@ -205,6 +210,15 @@ def evaluate(config_path: str | Path) -> dict[str, Any]:
     return summary
 
 
+def demo(seed: int = 0, out_dir: str | Path = "outputs") -> dict[str, Any]:
+    """Run the seeded synthetic end-to-end demo and print its metrics."""
+    from recsys.demo import run_demo
+
+    result = run_demo(seed=seed, out_dir=out_dir)
+    print(json.dumps(result, indent=2))
+    return result
+
+
 def main(argv: list[str] | None = None) -> int:
     """Build the typer app and dispatch. ``typer`` is imported here only."""
     import typer
@@ -226,6 +240,14 @@ def main(argv: list[str] | None = None) -> int:
     def evaluate_cmd(config: str = cfg_opt) -> None:
         """Compare ALS against the popularity baseline."""
         evaluate(config)
+
+    @app.command(name="demo")
+    def demo_cmd(
+        seed: int = typer.Option(0, "--seed", help="Synthesis seed."),
+        out_dir: str = typer.Option("outputs", "--out-dir", help="Artefact dir."),
+    ) -> None:
+        """Run the seeded synthetic end-to-end demo (no config/data needed)."""
+        demo(seed=seed, out_dir=out_dir)
 
     # Register train under the name "train" (the function name carries _cmd).
     app.command(name="train")(train_cmd)

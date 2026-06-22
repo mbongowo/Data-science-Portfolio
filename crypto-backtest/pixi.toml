@@ -37,6 +37,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tasks]
+demo = "backtest demo --seed 0 --out outputs"
 test = "pytest"
 lint = "ruff check . && mypy src"
 format = "ruff format ."

@@ -38,6 +38,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tasks]
+demo = "loganomaly demo --out outputs"
 test = "pytest"
 lint = "ruff check . && mypy src"
 format = "ruff format ."

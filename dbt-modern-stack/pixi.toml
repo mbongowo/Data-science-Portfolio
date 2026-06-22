@@ -45,3 +45,5 @@ seed = "dwh seed --config config/warehouse.yaml"
 build = "dbt build --project-dir transform --profiles-dir transform"
 # Run the pure-pandas data-quality core (mirrors dbt generic tests).
 dq = "dwh dq --config config/warehouse.yaml"
+# End-to-end DQ on seeded synthetic data (no warehouse / dbt / duckdb needed).
+demo = "dwh demo --out-dir outputs"

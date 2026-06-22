@@ -66,7 +66,7 @@ The models are layered by folder, each layer with its own materialization:
 |---|---|---|---|
 | Staging | `models/staging/` | view | One clean, typed, renamed row per source row. No joins, no business logic. `stg_titles`, `stg_ratings`. |
 | Intermediate | `models/intermediate/` | view | Reusable joins and reshaping. `int_titles_rated` inner-joins titles to ratings — the fact grain. |
-| Marts | `models/marts/` | table | The entities BI reads. `dim_title` (one row per title, surrogate + natural key) and `fct_title_rating` (one row per rated title, FK to the dim, plus a derived `rating_band`). |
+| Marts | `models/marts/` | table | The entities BI reads. `dim_title` (one row per title, surrogate + natural key), `fct_title_rating` (one row per rated title, FK to the dim, plus a derived `rating_band`), and `agg_rating_by_type` (one row per title type: rated-title count, mean rating, total votes, high-band share — the aggregate the dashboard reads directly). |
 
 Staging isolates source quirks, so a column rename or a type fix happens once.
 Marts are materialized as tables because BI hits them repeatedly and wants them
@@ -87,6 +87,8 @@ dbt has two kinds of test, and this project uses both.
   `{high, medium, low}`).
 - `relationships` — every `fct_title_rating.title_key` matches a
   `dim_title.title_key` (referential integrity; no orphan facts).
+- `dbt_utils.accepted_range` — numeric bounds: `average_rating` in `[1.0, 10.0]`,
+  `num_votes >= 1`, `high_band_share` in `[0.0, 1.0]` on the aggregate mart.
 
 See `transform/models/staging/_staging.yml` and `models/marts/_marts.yml`.
 
@@ -123,6 +125,50 @@ print(summary)   # one row per test: test, table, column, passed, failures, deta
 and exits non-zero if any test fails — handy as a fast pre-dbt smoke check. The
 failure semantics deliberately match dbt, including the edge cases (`unique` and
 `relationships` ignore NULLs).
+
+### Extended test types and severities
+
+Beyond dbt's four built-ins, `dwh.dq` ships the checks engineers usually pull in
+via `dbt_utils` or singular tests, each with the same `(passed, failures)` shape:
+
+- `test_accepted_range(df, col, lo, hi)` — numeric bounds (mirrors
+  `dbt_utils.accepted_range`); `inclusive=False` makes the bounds themselves fail.
+- `test_not_null_where(df, col, predicate)` — `not_null` restricted to the rows a
+  predicate selects (`dbt_utils.not_null_where`).
+- `test_expression(df, expr_fn)` — a row-level boolean rule that must hold for
+  every row (`dbt_utils.expression_is_true`), for cross-column checks like
+  `end_year >= start_year`.
+- `test_freshness(df, ts_col, max_age, now)` — relational source freshness: stale
+  when the newest timestamp lags `now` by more than `max_age` (mirrors
+  `dbt source freshness`).
+
+Each `TestSpec` carries a `severity` of `"error"` (default) or `"warn"`. A
+failing `warn` test still shows on its summary row but does not fail the suite;
+`suite_failed(summary)` only looks at `error` tests, exactly like dbt's
+`severity: warn`.
+
+```python
+from datetime import datetime, timedelta
+from dwh.dq import TestSpec, run_suite, suite_failed
+
+df = pd.DataFrame({"rating": [5.0, 99.0], "_loaded_at": ["2026-01-01", "2026-01-01"]})
+summary = run_suite([
+    TestSpec("accepted_range", df, "rating", lo=1.0, hi=10.0, severity="warn"),
+    TestSpec("freshness", df, ts_col="_loaded_at",
+             max_age=timedelta(days=2), now=datetime(2026, 1, 2)),
+])
+print(summary)            # includes a `severity` column
+print(suite_failed(summary))  # True only if an *error* test failed
+```
+
+### Slowly changing dimensions (SCD2) in pandas
+
+`dwh.dimensional.scd2_snapshot(current, previous, key, cols, valid_from)` advances
+a Type-2 snapshot by one run: unchanged keys carry forward, changed keys get their
+prior version closed (`valid_to` set, `is_current=False`) and a new current version
+appended, and new keys are inserted — the same history `dbt snapshot` maintains.
+It is pure pandas and covered by a hand-derived known-answer test (see
+`notebooks/01_walkthrough.ipynb` for a worked two-run example).
 
 ## 5. Docs and lineage
 
@@ -186,10 +232,12 @@ Move this to BigQuery or Snowflake on billions of rows and cost becomes the main
 design constraint — partitioning, clustering, incremental models, and slot/credit
 budgeting — none of which the sandbox forces you to confront.
 
-**Slowly changing dimensions.** `dim_title` overwrites in place (type 1). There
-is no history: a retitled or recategorised title loses its prior value. Real
-dimensions often need snapshots (SCD2) with effective dates and surrogate-key
-versioning, which changes the grain and the join logic.
+**Slowly changing dimensions in the warehouse.** `dim_title` overwrites in place
+(type 1) in dbt: a retitled or recategorised title loses its prior value. The
+pure-pandas `dwh.dimensional.scd2_snapshot` demonstrates the Type-2 pattern
+(effective-dated `valid_from`/`valid_to`/`is_current` history), but it is not yet
+wired into the dbt marts as a real `dbt snapshot`, which would change the grain
+and the join logic.
 
 **Governance.** The tests are the only contract here. There is no catalog
 integration, column-level lineage to downstream tools, PII tagging, access

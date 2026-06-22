@@ -1,9 +1,10 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install mart benchmark test lint format clean
+.PHONY: help install demo mart benchmark test lint format clean
 
 help:
 	@echo "Targets:"
 	@echo "  install    Install the package + dev extras (pip)"
+	@echo "  demo       Run the reproducible pandas demo (seeded synthetic data)"
 	@echo "  mart       Build the aggregated mart (pandas reference path)"
 	@echo "  benchmark  Run the engine bake-off harness"
 	@echo "  test       Run pytest (pure-pandas known-answer tests always run)"
@@ -13,6 +14,9 @@ help:
 
 install:
 	pip install -e ".[dev,engines]"
+
+demo:
+	tlc demo --out outputs
 
 mart:
 	tlc mart --config config/tlc.yaml --out outputs

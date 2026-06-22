@@ -1,5 +1,5 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install seed build dq test lint format clean
+.PHONY: help install seed build dq demo test lint format clean
 
 help:
 	@echo "Targets:"
@@ -7,6 +7,7 @@ help:
 	@echo "  seed      Load raw IMDb extracts into the DuckDB warehouse"
 	@echo "  build     dbt build (run all models + generic/singular tests)"
 	@echo "  dq        Run the pure-pandas data-quality core"
+	@echo "  demo      End-to-end DQ on seeded synthetic data (no warehouse)"
 	@echo "  test      Run pytest (pure-pandas known-answer tests always run)"
 	@echo "  lint      ruff check + mypy"
 	@echo "  format    ruff format"
@@ -23,6 +24,9 @@ build:
 
 dq:
 	dwh dq --config config/warehouse.yaml
+
+demo:
+	dwh demo --out-dir outputs
 
 test:
 	pytest

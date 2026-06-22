@@ -27,6 +27,23 @@ Worked examples used below:
    ideal order of grades is [3, 3, 2, 0]:
    IDCG = 3*1 + 3/log2(3) + 2*(1/2) + 0          = 5.892789260714372
    NDCG = DCG / IDCG                              = 0.9777813616305049
+
+5. Average Precision@K. recommended = [a, b, c, d, e],
+   relevant = {b, d, x}, k = 4. Top-4 = [a, b, c, d].
+   rank 1 (a): miss.  rank 2 (b): hit #1 -> precision 1/2.
+   rank 3 (c): miss.  rank 4 (d): hit #2 -> precision 2/4 = 1/2.
+   sum of hit-precisions = 1/2 + 1/2 = 1.
+   denominator = min(|relevant|, k) = min(3, 4) = 3.
+   AP@4 = 1 / 3 = 0.3333333333333333.
+
+6. Mean Reciprocal Rank. lists = [[a, b, c], [x, y, z]],
+   relevant = [{b}, {x}]. user 1: first relevant (b) at rank 2 -> 1/2.
+   user 2: first relevant (x) at rank 1 -> 1/1 = 1.
+   MRR = (1/2 + 1) / 2 = 0.75.
+
+7. Catalogue coverage. lists = [[a, b], [b, c]], catalog = {a, b, c, d}.
+   union of recommended-and-in-catalog = {a, b, c} -> 3 of 4 items.
+   coverage = 3 / 4 = 0.75.
 """
 
 from __future__ import annotations
@@ -35,7 +52,15 @@ import math
 
 import pytest
 
-from recsys.metrics import ndcg_at_k, precision_at_k, recall_at_k, rmse
+from recsys.metrics import (
+    average_precision_at_k,
+    catalog_coverage,
+    mean_reciprocal_rank,
+    ndcg_at_k,
+    precision_at_k,
+    recall_at_k,
+    rmse,
+)
 
 
 def test_rmse_hand_value() -> None:
@@ -111,3 +136,97 @@ def test_ndcg_no_relevance_is_zero() -> None:
 def test_ndcg_rejects_bad_k() -> None:
     with pytest.raises(ValueError):
         ndcg_at_k(["a"], {"a": 1.0}, 0)
+
+
+def test_average_precision_hand_value() -> None:
+    """Hits at ranks 2 and 4 => AP@4 = (1/2 + 1/2)/3 = 1/3 (see docstring)."""
+    recommended = ["a", "b", "c", "d", "e"]
+    relevant = {"b", "d", "x"}
+    assert average_precision_at_k(recommended, relevant, 4) == pytest.approx(
+        1.0 / 3.0, abs=1e-12
+    )
+
+
+def test_average_precision_perfect_is_one() -> None:
+    """All relevant items at the very top => AP = 1.0."""
+    assert average_precision_at_k(["a", "b", "c"], {"a", "b", "c"}, 3) == pytest.approx(
+        1.0, abs=1e-12
+    )
+
+
+def test_average_precision_no_relevant_is_zero() -> None:
+    """No relevant items => AP defined as 0."""
+    assert average_precision_at_k(["a", "b"], set(), 2) == 0.0
+
+
+def test_average_precision_no_hits_is_zero() -> None:
+    """Relevant items exist but none are recommended => AP = 0."""
+    assert average_precision_at_k(["a", "b"], {"x", "y"}, 2) == 0.0
+
+
+def test_average_precision_k_larger_than_catalog() -> None:
+    """k beyond the list length scores only what is present (no index error)."""
+    # top-10 of a 2-item list: only b is relevant, hit at rank 2 -> 1/2;
+    # denom = min(|relevant|=1, k=10) = 1 -> AP = 1/2.
+    assert average_precision_at_k(["a", "b"], {"b"}, 10) == pytest.approx(
+        0.5, abs=1e-12
+    )
+
+
+def test_average_precision_rejects_bad_k() -> None:
+    with pytest.raises(ValueError):
+        average_precision_at_k(["a"], {"a"}, 0)
+
+
+def test_mrr_hand_value() -> None:
+    """First-relevant at ranks 2 and 1 => MRR = (1/2 + 1)/2 = 0.75."""
+    lists = [["a", "b", "c"], ["x", "y", "z"]]
+    relevant = [{"b"}, {"x"}]
+    assert mean_reciprocal_rank(lists, relevant) == pytest.approx(0.75, abs=1e-12)
+
+
+def test_mrr_no_relevant_anywhere_is_zero() -> None:
+    """A user with no relevant item in the list contributes 0 reciprocal rank."""
+    lists = [["a", "b"], ["c", "d"]]
+    relevant = [{"z"}, {"q"}]
+    assert mean_reciprocal_rank(lists, relevant) == 0.0
+
+
+def test_mrr_empty_is_zero() -> None:
+    """No users => MRR = 0."""
+    assert mean_reciprocal_rank([], []) == 0.0
+
+
+def test_mrr_rejects_length_mismatch() -> None:
+    with pytest.raises(ValueError):
+        mean_reciprocal_rank([["a"]], [{"a"}, {"b"}])
+
+
+def test_catalog_coverage_hand_value() -> None:
+    """Recommended union {a,b,c} of catalog {a,b,c,d} => coverage 3/4 = 0.75."""
+    lists = [["a", "b"], ["b", "c"]]
+    catalog = {"a", "b", "c", "d"}
+    assert catalog_coverage(lists, catalog) == pytest.approx(0.75, abs=1e-12)
+
+
+def test_catalog_coverage_full() -> None:
+    """Every catalogue item recommended somewhere => coverage 1.0."""
+    lists = [["a", "b"], ["c"]]
+    assert catalog_coverage(lists, {"a", "b", "c"}) == pytest.approx(1.0, abs=1e-12)
+
+
+def test_catalog_coverage_empty_recommendations_is_zero() -> None:
+    """No recommendations at all => nothing covered."""
+    assert catalog_coverage([], {"a", "b"}) == 0.0
+    assert catalog_coverage([[], []], {"a", "b"}) == 0.0
+
+
+def test_catalog_coverage_empty_catalog_is_zero() -> None:
+    """Empty catalogue => coverage defined as 0 (no division by zero)."""
+    assert catalog_coverage([["a"]], set()) == 0.0
+
+
+def test_catalog_coverage_ignores_out_of_catalog_items() -> None:
+    """Items recommended that are not in the catalogue do not count."""
+    # only 'a' is in the catalog; 'z' is ignored -> 1 of 2 = 0.5.
+    assert catalog_coverage([["a", "z"]], {"a", "b"}) == pytest.approx(0.5, abs=1e-12)

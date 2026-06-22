@@ -15,9 +15,11 @@ and is imported lazily, never by this module or the test suite.
 from __future__ import annotations
 
 from sentiment.aggregate import sentiment_timeseries
+from sentiment.classify import LogisticRegression, bag_of_words
 from sentiment.clean import normalize_text, tokenize
 from sentiment.lexicon import DEMO_LEXICON, score_text
-from sentiment.topics import tfidf
+from sentiment.topics import nmf, tfidf
+from sentiment.uncertainty import bootstrap_mean_ci
 
 __all__ = [
     "normalize_text",
@@ -26,6 +28,10 @@ __all__ = [
     "DEMO_LEXICON",
     "sentiment_timeseries",
     "tfidf",
+    "nmf",
+    "bag_of_words",
+    "LogisticRegression",
+    "bootstrap_mean_ci",
     "__version__",
 ]
 

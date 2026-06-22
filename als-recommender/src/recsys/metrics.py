@@ -186,3 +186,151 @@ def ndcg_at_k(
     if idcg == 0.0:
         return 0.0
     return _dcg(gains) / idcg
+
+
+def average_precision_at_k(
+    recommended: Sequence[object], relevant: set[object], k: int
+) -> float:
+    r"""Average Precision@K (the per-user building block of MAP).
+
+    Walk the top-``k`` list; every time a *relevant* item is hit at rank ``r``,
+    record the running precision (relevant hits so far divided by ``r``). AP@K
+    averages those hit-precisions, normalised by the number of relevant items
+    that could have been retrieved within ``k``:
+
+    .. math::
+
+        \mathrm{AP@k} = \frac{1}{\min(|\text{relevant}|, k)}
+            \sum_{r=1}^{k} \mathbf{1}[\text{hit at } r]\,\cdot\,
+            \frac{\text{hits in top } r}{r}.
+
+    Mean Average Precision (MAP) is just the mean of this over users, hence the
+    name "building block".
+
+    Parameters
+    ----------
+    recommended:
+        Ordered list of recommended item ids, best first.
+    relevant:
+        Set of relevant item ids for this user.
+    k:
+        Cut-off.
+
+    Returns
+    -------
+    float
+        AP@k in ``[0, 1]``. Returns ``0.0`` when the user has no relevant items
+        (nothing could contribute precision).
+
+    Raises
+    ------
+    ValueError
+        If ``k <= 0``.
+    """
+    if k <= 0:
+        raise ValueError("k must be a positive integer.")
+    if not relevant:
+        return 0.0
+    top = recommended[:k]
+    hits = 0
+    score = 0.0
+    for rank_pos, item in enumerate(top, start=1):
+        if item in relevant:
+            hits += 1
+            score += hits / rank_pos
+    denom = min(len(relevant), k)
+    return score / denom
+
+
+def mean_reciprocal_rank(
+    recommended_lists: Sequence[Sequence[object]],
+    relevant_sets: Sequence[set[object]],
+) -> float:
+    r"""Mean Reciprocal Rank over a set of users.
+
+    For one user the reciprocal rank is ``1 / rank`` of the **first** relevant
+    item in the list (``0`` if none appears). MRR averages that over users:
+
+    .. math::
+
+        \mathrm{MRR} = \frac{1}{N}\sum_{u=1}^{N}
+            \frac{1}{\mathrm{rank}_u\ \text{of first relevant item}}.
+
+    It rewards getting *one* good item to the very top, which is the right lens
+    for "the user only looks at the first result" tasks.
+
+    Parameters
+    ----------
+    recommended_lists:
+        One ordered recommendation list per user.
+    relevant_sets:
+        One relevant-item set per user, aligned with ``recommended_lists``.
+
+    Returns
+    -------
+    float
+        MRR in ``[0, 1]``. Returns ``0.0`` when there are no users.
+
+    Raises
+    ------
+    ValueError
+        If the two sequences have different lengths.
+    """
+    if len(recommended_lists) != len(relevant_sets):
+        raise ValueError(
+            "recommended_lists and relevant_sets must have the same length: "
+            f"{len(recommended_lists)} vs {len(relevant_sets)}."
+        )
+    if not recommended_lists:
+        return 0.0
+    total = 0.0
+    for recommended, relevant in zip(recommended_lists, relevant_sets, strict=False):
+        for rank_pos, item in enumerate(recommended, start=1):
+            if item in relevant:
+                total += 1.0 / rank_pos
+                break
+    return total / len(recommended_lists)
+
+
+def catalog_coverage(
+    recommended_lists: Sequence[Sequence[object]],
+    catalog: set[object],
+) -> float:
+    r"""Catalogue coverage: fraction of the catalogue ever recommended.
+
+    .. math::
+
+        \mathrm{coverage} =
+            \frac{\lvert \bigcup_u \text{top-N}_u \cap \text{catalog}\rvert}
+                 {\lvert \text{catalog}\rvert}.
+
+    A diversity / aggregate-fairness check: accuracy metrics can be high while
+    the recommender keeps surfacing the same few head items. Coverage exposes
+    that — a system that only ever recommends 5 of 1000 items scores ``0.005``.
+
+    Parameters
+    ----------
+    recommended_lists:
+        One recommendation list per user (any length).
+    catalog:
+        The full set of recommendable item ids.
+
+    Returns
+    -------
+    float
+        Coverage in ``[0, 1]``. Returns ``0.0`` for an empty catalogue. Items
+        recommended that are not in ``catalog`` are ignored in the numerator.
+
+    Raises
+    ------
+    ValueError
+        If ``catalog`` is not a set-like (it must support membership/len).
+    """
+    if not catalog:
+        return 0.0
+    recommended_items: set[object] = set()
+    for recommended in recommended_lists:
+        for item in recommended:
+            if item in catalog:
+                recommended_items.add(item)
+    return len(recommended_items) / len(catalog)

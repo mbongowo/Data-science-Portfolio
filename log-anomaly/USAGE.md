@@ -7,11 +7,14 @@ and (where labels exist) measure precision / recall / F1. It closes with what
 these flags do not establish.
 
 The pure-numpy core (`mask_line`, `template_id`, `event_count_matrix`,
-`pca_reconstruction_error`, `zscore_anomalies`, `flag`, `precision_recall_f1`,
-`confusion_matrix`) runs with only numpy / pandas installed and is meant for
-small problems and for checking your understanding. The scale-out parsing of the
-full multi-million-line corpus and the optional IsolationForest detector live in
-`spark_pipeline.py` and need the Spark / scikit-learn stack described below.
+`template_idf`, `session_rarity`, `count_invariants`, `pca_reconstruction_error`,
+`mahalanobis_scores`, `mahalanobis_threshold`, `zscore_anomalies`, `flag`,
+`precision_recall_f1`, `confusion_matrix`, `pr_curve`, `roc_curve`, `auc`) runs
+with only numpy / pandas installed and is meant for small problems and for
+checking your understanding. The scale-out parsing of the full
+multi-million-line corpus and the optional IsolationForest detector live in
+`spark_pipeline.py` and need the Spark / scikit-learn stack described below. A
+runnable tour of the core is `notebooks/01_walkthrough.ipynb`.
 
 ## 1. Install
 
@@ -126,6 +129,44 @@ error is ~0; that is the property the tests pin down. Choosing `k` is a bias /
 variance call: too small and normal variety leaks into the residual (false
 positives), too large and the subspace swallows the anomalies (false negatives).
 
+**Mahalanobis distance.** A second, correlation-aware detector. Each session is
+scored by its (squared) Mahalanobis distance from the column mean under a
+*pseudo-inverse* of the covariance, so a session is anomalous when its event mix
+is far from the centre after whitening — even if no single count is extreme. The
+pseudo-inverse is what makes it robust: a constant (zero-variance) column or two
+perfectly collinear columns make the covariance singular and would break a plain
+inverse; the pseudo-inverse simply ignores those degenerate directions.
+
+```python
+from loganomaly.detect import mahalanobis_scores, mahalanobis_threshold
+
+scores = mahalanobis_scores(X)
+anomalies = mahalanobis_threshold(scores, quantile=0.95)   # top ~5% by distance
+```
+
+**Template rarity (IDF).** A cheap label-free signal that complements the above.
+`template_idf` gives each template an inverse-frequency weight (rare templates
+weigh more); `session_rarity` is then the IDF-weighted event count per session.
+
+```python
+from loganomaly.features import template_idf, session_rarity
+
+idf = template_idf(session_to_template_ids.values(), n_templates)
+rarity = session_rarity(X, idf)   # high == fires rare templates
+```
+
+**Invariants band check.** `count_invariants` learns a per-template normal range
+(a `[lower, upper]` quantile band over all sessions) and flags any session whose
+count for some template falls outside that template's band. Unlike the
+whole-vector detectors, it is per-template, so *which* template broke its
+invariant is easy to recover.
+
+```python
+from loganomaly.features import count_invariants
+
+flagged = count_invariants(X, lower_quantile=0.05, upper_quantile=0.95)
+```
+
 **z-score rule.** A blunt baseline on a single derived score (e.g. the total
 event count per session): flag scores more than `z` standard deviations above the
 mean.
@@ -137,7 +178,8 @@ anomalies = zscore_anomalies(X.sum(axis=1), z=3.0)
 ```
 
 It is one-sided (only unusually high scores flag) and a zero-variance input flags
-nothing. Use it as a sanity baseline; PCA is the better detector on this matrix.
+nothing. Use it as a sanity baseline; PCA and Mahalanobis are the better
+detectors on this matrix.
 
 Run it from the command line: `loganomaly detect --config config/hdfs.yaml`. The
 detector and its parameters come from the `detect` block of the config.
@@ -162,6 +204,26 @@ Read the confusion matrix, not just the F1. False positives are blocks you will
 waste triage time on; false negatives are the failures you missed. Which one
 hurts more depends on the operational cost, and that sets the threshold — not the
 other way round.
+
+**Comparing detectors without picking a threshold.** Precision / recall / F1 all
+depend on the cut. To compare two detectors *as rankers*, sweep every threshold
+and integrate: `roc_curve` / `pr_curve` return point arrays and `auc` is the
+trapezoid-rule area. ROC-AUC = 1.0 is perfect ranking, 0.5 is random; PR-AUC
+(average precision) is the more honest summary on this imbalanced problem.
+
+```python
+from loganomaly.detect import mahalanobis_scores, pca_reconstruction_error
+from loganomaly.evaluate import auc, pr_curve, roc_curve
+
+for name, s in [("pca", pca_reconstruction_error(X, k=3)),
+                ("maha", mahalanobis_scores(X))]:
+    fpr, tpr = roc_curve(y_true, s)
+    rec, prec = pr_curve(y_true, s)
+    print(name, "ROC-AUC", round(auc(fpr, tpr), 4), "PR-AUC", round(auc(rec, prec), 4))
+```
+
+`notebooks/01_walkthrough.ipynb` runs exactly this comparison on the seeded demo
+corpus. The labels are used only to *score* the ranking, never to fit it.
 
 ## 7. How to interpret responsibly
 

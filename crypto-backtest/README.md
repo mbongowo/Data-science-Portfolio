@@ -15,28 +15,40 @@ slippage, and data-integrity checks run before anything is trusted.
 
 ## Result first
 
-**Question.** On Binance public BTCUSDT tick dumps resampled to 1-minute bars,
-how does a simple SMA-crossover strategy perform once you account for execution
-delay and costs?
+**Question.** How does a simple SMA-crossover strategy perform, *end to end*,
+once you resample ticks to bars, delay execution to the next bar, and charge
+realistic fees and slippage on every trade?
 
-**Answer (illustrative).** A backtest report. Signals act on the **next** bar,
-fees and slippage are charged on every trade, and the data is checked for gaps
-and duplicates first.
+**Answer (real, reproducible).** The numbers below are produced by
+[`backtest demo`](src/backtest/demo.py) — the *actual* core (integrity checks ->
+resample -> indicators -> no-look-ahead engine -> performance) run on a small
+**seeded synthetic** tick series. They regenerate byte-for-byte in seconds with
+no external data, so they are pinned in the test suite.
 
 ```
-total return     : +6.8%
-Sharpe (annual)  : 0.74     (periods_per_year = 525600, 1-min bars)
-max drawdown     : 18.2%
-trades           : 312      fee+slippage = 15 bps per change
-data integrity   : 0 duplicate bars, 4 gaps (exchange maintenance), coverage 99.97%
+SMA(10/30) crossover, long/flat, on 1000 one-minute bars (60,000 synthetic ticks)
+-----------------------------------------------------------------------------------
+total return     : -3.50%
+Sharpe (annual)  : -3.82     (periods_per_year = 525600, 1-min bars)
+max drawdown     : 12.13%
+trades           : 36        fee + slippage = 10 + 5 = 15 bps per position change
+buy & hold       : +1.26%    (baseline, same bars, no costs)
+
+Assumptions: signal on bar t EXECUTES on bar t+1 (no look-ahead); indicators
+strictly trailing; data integrity checked first (0 gaps, 0 duplicates,
+coverage 1.0); price path = seeded synthetic geometric Brownian motion.
 ```
 
-*(Numbers above are illustrative placeholders; run the pipeline to regenerate
-them for your symbol, date range, and config.)*
+**Reproduce:** `pixi run demo` (or `make demo`, or
+`backtest demo --seed 0 --out outputs`). Writes `outputs/bars.csv`,
+`outputs/equity_curve.csv`, and `outputs/summary.json`.
 
-![Placeholder equity curve](outputs/.gitkeep)
-<!-- Running `make run` writes outputs/equity.parquet and summary.json;
-     plot the equity curve and drop the PNG here. -->
+**Read this honestly.** The price path is a seeded synthetic random walk with
+*zero drift*, so a costed crossover is **expected to lose** — and it does,
+underperforming buy-and-hold. That is the point: this demo proves the machinery
+is rigorous and reproducible, **not** that the strategy has a real-world edge.
+The very same `resample -> indicators -> backtest -> performance` path runs on
+real Binance tick dumps via `backtest run`. Rigor over returns.
 
 ### Assumptions and limitations
 
@@ -77,21 +89,44 @@ data/                       # Binance tick dumps land here (git-ignored)
         |
 src/backtest/
   bars.py          # ticks -> OHLCV via pandas resample (left-closed bars)
-  indicators.py    # sma / ema / Wilder rsi / rolling_vol (strictly trailing)
+  indicators.py    # sma / ema / Wilder rsi / rolling_vol + macd / bollinger / atr
   integrity.py     # find_gaps / find_duplicates / summarize_integrity
   engine.py        # backtest(): signals.shift(1) => NO look-ahead; fees+slippage
-  performance.py   # total_return / sharpe / max_drawdown
+  performance.py   # total_return / sharpe / max_drawdown + sortino / calmar /
+                   #   win_rate / turnover / exposure
+  validation.py    # walk_forward_splits (out-of-sample) + sensitivity_sweep (costs)
   scale_pipeline.py# Polars + Spark resampling for huge dumps (lazy imports)
   cli.py           # `backtest` console entry point (bars / run / report)
 ```
 
-The numeric core (`bars`, `indicators`, `integrity`, `engine`, `performance`) is
-pure numpy/pandas with no heavy optional dependency, so it is always importable
-and is pinned by **hand-derived known-answer tests**: a tiny tick set resamples
-to a checked OHLCV bar; the RSI of a strictly increasing series is exactly 100;
-a constant-long backtest over a known price path reproduces an equity curve
-computed by hand, including one fee charge; `max_drawdown([100,120,90,150])` is
-exactly `0.25`. The Polars/Spark backends in `scale_pipeline.py` handle the
+**Capabilities at a glance.**
+
+- **Indicators (strictly trailing):** SMA, EMA, Wilder RSI, rolling volatility,
+  **MACD** (line / signal / histogram), **Bollinger bands** (middle / upper /
+  lower), **Wilder ATR**.
+- **Performance:** total return, Sharpe, max drawdown, **Sortino** (downside
+  deviation), **Calmar** (CAGR / max drawdown), **win rate**, **turnover**,
+  **exposure**.
+- **Validation discipline:** **walk-forward splits** yielding non-overlapping
+  out-of-sample windows, and a fee/slippage **cost-sensitivity sweep** that
+  re-runs the real engine across a grid and tabulates total return.
+- **Walkthrough:** [`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb)
+  runs the demo and shows the new indicators, the cost sweep, and the
+  walk-forward windows end to end.
+
+The numeric core (`bars`, `indicators`, `integrity`, `engine`, `performance`,
+`validation`) is pure numpy/pandas with no heavy optional dependency, so it is
+always importable and is pinned by **hand-derived known-answer tests**: a tiny
+tick set resamples to a checked OHLCV bar; the RSI of a strictly increasing
+series is exactly 100; a constant series gives an all-zero MACD; Bollinger band
+width on `[1..5]` follows the population sigma; a Wilder ATR with `n=1` equals
+the per-bar true range; the Sortino of a no-downside series is `+inf`; Calmar of
+`[100,120,90,150]` over three periods is `2.0`; a constant-long backtest over a
+known price path reproduces an equity curve computed by hand, including one fee
+charge; `max_drawdown([100,120,90,150])` is exactly `0.25`; `walk_forward_splits`
+tiles non-overlapping out-of-sample windows; and the zero-cost row of a
+sensitivity sweep reproduces the gross backtest. The Polars/Spark backends in
+`scale_pipeline.py` handle the
 multi-gigabyte resampling real dumps need and import lazily, so the core and the
 test suite run on numpy/pandas alone.
 
@@ -105,6 +140,7 @@ See [`USAGE.md`](USAGE.md) for the end-to-end workflow.
 
 ```bash
 pixi install            # resolves deps and GENERATES pixi.lock (not committed)
+pixi run demo           # end-to-end on a seeded synthetic series (no data needed)
 pixi run bars           # resample data/raw ticks -> 1-minute Parquet bars
 pixi run run            # run the no-look-ahead backtest -> outputs/
 pixi run test

@@ -44,12 +44,23 @@ def test_advance_watermark_progresses() -> None:
 
 def test_advance_watermark_monotone() -> None:
     """A late/out-of-order event must not move the watermark backward."""
-    wm = advance_watermark(0.0, 100.0, 5.0)   # 95
-    wm = advance_watermark(wm, 103.0, 5.0)     # 98
-    wm = advance_watermark(wm, 60.0, 5.0)      # stays 98
+    wm = advance_watermark(0.0, 100.0, 5.0)  # 95
+    wm = advance_watermark(wm, 103.0, 5.0)  # 98
+    wm = advance_watermark(wm, 60.0, 5.0)  # stays 98
     assert wm == 98.0
 
 
 def test_advance_watermark_rejects_negative_lateness() -> None:
     with pytest.raises(ValueError):
         advance_watermark(0.0, 100.0, -1.0)
+
+
+def test_advance_watermark_zero_lateness() -> None:
+    """With zero allowed lateness the watermark equals the max event time."""
+    assert advance_watermark(0.0, 100.0, 0.0) == 100.0
+
+
+def test_advance_watermark_equal_event_does_not_regress() -> None:
+    """Re-observing the current max keeps the watermark put (non-decreasing)."""
+    wm = advance_watermark(0.0, 100.0, 5.0)  # 95
+    assert advance_watermark(wm, 100.0, 5.0) == 95.0

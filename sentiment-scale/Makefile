@@ -1,9 +1,10 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install ingest score trends test lint format clean
+.PHONY: help install demo ingest score trends test lint format clean
 
 help:
 	@echo "Targets:"
 	@echo "  install   Install the package + dev extras (pip)"
+	@echo "  demo      Run the seeded synthetic end-to-end demo (numpy/pandas only)"
 	@echo "  ingest    Load compressed Reddit dumps -> cleaned Parquet"
 	@echo "  score     Score documents (lexicon or model) -> Parquet"
 	@echo "  trends    Aggregate scores into a daily/weekly sentiment series"
@@ -14,6 +15,9 @@ help:
 
 install:
 	pip install -e ".[dev,spark,model]"
+
+demo:
+	sentiment demo --out outputs
 
 ingest:
 	sentiment ingest --config config/reddit.yaml --out data/raw

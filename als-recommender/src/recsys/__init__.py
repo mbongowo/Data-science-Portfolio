@@ -13,18 +13,38 @@ and is deliberately not pulled in by importing this package.
 
 from __future__ import annotations
 
-from recsys.als import als_factorize, predict
+from recsys.als import (
+    als_factorize,
+    als_factorize_biased,
+    als_implicit,
+    predict,
+    predict_biased,
+)
 from recsys.baseline import popularity_scores, recommend_popular
-from recsys.metrics import ndcg_at_k, precision_at_k, recall_at_k, rmse
+from recsys.metrics import (
+    average_precision_at_k,
+    catalog_coverage,
+    mean_reciprocal_rank,
+    ndcg_at_k,
+    precision_at_k,
+    recall_at_k,
+    rmse,
+)
 from recsys.split import train_val_test_split
 
 __all__ = [
     "als_factorize",
+    "als_factorize_biased",
+    "als_implicit",
     "predict",
+    "predict_biased",
     "rmse",
     "precision_at_k",
     "recall_at_k",
     "ndcg_at_k",
+    "average_precision_at_k",
+    "mean_reciprocal_rank",
+    "catalog_coverage",
     "popularity_scores",
     "recommend_popular",
     "train_val_test_split",

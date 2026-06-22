@@ -15,6 +15,12 @@ its functions, so neither this module nor the test suite requires them.
 from __future__ import annotations
 
 from clickstream.aggregate import events_per_minute
+from clickstream.streaming import (
+    funnel_time_to_convert,
+    reorder_within_lateness,
+    retention,
+    top_k_heavy_hitters,
+)
 from clickstream.watermark import advance_watermark, is_late
 from clickstream.windows import (
     funnel,
@@ -31,6 +37,10 @@ __all__ = [
     "is_late",
     "advance_watermark",
     "events_per_minute",
+    "top_k_heavy_hitters",
+    "reorder_within_lateness",
+    "funnel_time_to_convert",
+    "retention",
     "__version__",
 ]
 

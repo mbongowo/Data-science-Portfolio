@@ -37,3 +37,16 @@ def test_events_per_minute_known() -> None:
 def test_events_per_minute_requires_ts_column() -> None:
     with pytest.raises(ValueError):
         events_per_minute(pd.DataFrame({"other": [1, 2, 3]}))
+
+
+def test_events_per_minute_single_event() -> None:
+    """A single event lands in exactly one minute bucket."""
+    result = events_per_minute(pd.DataFrame({"ts": [125]}))
+    assert list(result.index) == [120]
+    assert list(result.to_numpy()) == [1]
+
+
+def test_events_per_minute_empty() -> None:
+    """No rows -> an empty count series (no buckets)."""
+    result = events_per_minute(pd.DataFrame({"ts": []}))
+    assert len(result) == 0

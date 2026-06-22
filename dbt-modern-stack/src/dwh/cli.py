@@ -5,6 +5,7 @@ Three subcommands wrap the stack:
     dwh seed  --config config/warehouse.yaml    # raw IMDb extracts -> DuckDB
     dwh build --config config/warehouse.yaml    # dbt build (models + tests)
     dwh dq    --config config/warehouse.yaml    # the pure-pandas DQ core
+    dwh demo  --out-dir outputs                 # end-to-end DQ on synthetic data
 
 The heavy imports (typer, duckdb, dbt) happen inside the command functions, so
 importing this module never requires the full stack. ``main`` falls back to a
@@ -75,6 +76,27 @@ def _cmd_dq(config: str) -> int:
     return 0 if bool(summary["passed"].all()) else 1
 
 
+def _cmd_demo(out_dir: str = "outputs", seed: int = 0) -> int:
+    """Drive the pure-pandas core end to end on synthetic IMDb-like data.
+
+    No warehouse, no dbt, no duckdb: synthesizes a small seeded dataset, builds
+    marts, runs the generic-test suite and writes artifacts. Returns non-zero if
+    any test fails on the clean data (it should not).
+    """
+    import json
+
+    from dwh.demo import run_demo
+
+    summary = run_demo(seed=seed, out_dir=out_dir)
+    print(json.dumps(summary, indent=2))
+    print(
+        f"\n{summary['num_tests']} tests, {summary['num_passed']} passed "
+        f"on {summary['num_titles']} titles / {summary['num_ratings']} ratings. "
+        f"Artifacts in {out_dir}/."
+    )
+    return 0 if summary["num_failed"] == 0 else 1
+
+
 def _build_typer_app():  # type: ignore[no-untyped-def]
     import typer
 
@@ -94,6 +116,11 @@ def _build_typer_app():  # type: ignore[no-untyped-def]
     def dq(config: str = DEFAULT_CONFIG) -> None:
         """Run the pure-pandas data-quality core."""
         raise typer.Exit(_cmd_dq(config))
+
+    @app.command()
+    def demo(out_dir: str = "outputs", seed: int = 0) -> None:
+        """Run the DQ core end to end on seeded synthetic data (no warehouse)."""
+        raise typer.Exit(_cmd_demo(out_dir, seed))
 
     return app
 
@@ -118,7 +145,13 @@ def _main_argparse(argv: list[str] | None = None) -> int:
     for name in ("seed", "build", "dq"):
         p = sub.add_parser(name)
         p.add_argument("--config", default=DEFAULT_CONFIG)
+    p_demo = sub.add_parser("demo")
+    p_demo.add_argument("--out-dir", default="outputs")
+    p_demo.add_argument("--seed", type=int, default=0)
     args = parser.parse_args(argv)
+
+    if args.command == "demo":
+        return _cmd_demo(args.out_dir, args.seed)
 
     dispatch = {"seed": _cmd_seed, "build": _cmd_build, "dq": _cmd_dq}
     return dispatch[args.command](args.config)

@@ -17,22 +17,43 @@ from __future__ import annotations
 
 from loganomaly.detect import (
     flag,
+    mahalanobis_scores,
+    mahalanobis_threshold,
     pca_reconstruction_error,
     zscore_anomalies,
 )
-from loganomaly.evaluate import confusion_matrix, precision_recall_f1
-from loganomaly.features import event_count_matrix
+from loganomaly.evaluate import (
+    auc,
+    confusion_matrix,
+    pr_curve,
+    precision_recall_f1,
+    roc_curve,
+)
+from loganomaly.features import (
+    count_invariants,
+    event_count_matrix,
+    session_rarity,
+    template_idf,
+)
 from loganomaly.templating import mask_line, template_id
 
 __all__ = [
     "mask_line",
     "template_id",
     "event_count_matrix",
+    "template_idf",
+    "session_rarity",
+    "count_invariants",
     "pca_reconstruction_error",
+    "mahalanobis_scores",
+    "mahalanobis_threshold",
     "zscore_anomalies",
     "flag",
     "precision_recall_f1",
     "confusion_matrix",
+    "pr_curve",
+    "roc_curve",
+    "auc",
     "__version__",
 ]
 

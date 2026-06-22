@@ -55,6 +55,15 @@ def test_tumbling_rejects_nonpositive_window() -> None:
         tumbling_counts([(0.0, "x")], 0.0)
 
 
+def test_tumbling_empty_is_empty() -> None:
+    """No events -> no windows."""
+    assert tumbling_counts([], 10.0) == {}
+
+
+def test_tumbling_single_event() -> None:
+    assert tumbling_counts([(7.0, "x")], 10.0) == {0.0: 1}
+
+
 def test_sliding_counts_known() -> None:
     """Hand-derived sliding counts: {-5: 1, 0: 2, 5: 1}."""
     events = [(0.0, "a"), (7.0, "b")]
@@ -87,6 +96,14 @@ def test_sessionize_rejects_unsorted() -> None:
         sessionize([0, 10, 5], 5)
 
 
+def test_sessionize_empty_is_empty() -> None:
+    assert sessionize([], 5) == []
+
+
+def test_sessionize_single_event() -> None:
+    assert sessionize([42], 5) == [0]
+
+
 def test_funnel_known() -> None:
     """Hand-derived funnel reach counts -> [3, 2, 1]."""
     user_events = {
@@ -114,3 +131,8 @@ def test_funnel_is_monotone_non_increasing() -> None:
 def test_funnel_rejects_empty_steps() -> None:
     with pytest.raises(ValueError):
         funnel({"a": ["view"]}, [])
+
+
+def test_funnel_no_users_is_all_zero() -> None:
+    """An empty user map reaches nothing."""
+    assert funnel({}, ["view", "cart"]) == [0, 0]

@@ -36,3 +36,6 @@ transform/target/
 transform/dbt_packages/
 transform/logs/
 *.duckdb
+
+# Notebook-run demo artifacts
+notebooks/outputs/

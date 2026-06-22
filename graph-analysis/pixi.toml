@@ -44,6 +44,7 @@ dev = { features = ["dev"], solve-group = "default" }
 test = "pytest"
 lint = "ruff check . && mypy src"
 format = "ruff format ."
+demo = "bdgraph demo --seed 0 --out outputs"
 pagerank = "bdgraph pagerank --config config/graph.yaml --out outputs"
 communities = "bdgraph communities --config config/graph.yaml --out outputs"
 triangles = "bdgraph triangles --config config/graph.yaml --out outputs"

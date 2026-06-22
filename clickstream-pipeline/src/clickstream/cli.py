@@ -81,6 +81,16 @@ def build_app() -> Any:
         for name, count in zip(step_list, counts, strict=True):
             typer.echo(f"{name}\t{count}")
 
+    @app.command("demo")
+    def demo(seed: int = 0, out_dir: str = "outputs") -> None:
+        """Run the seeded synthetic demo end-to-end and print the summary."""
+        import json
+
+        from clickstream.demo import run_demo
+
+        metrics = run_demo(seed=seed, out_dir=out_dir)
+        typer.echo(json.dumps(metrics, indent=2, default=str))
+
     return app
 
 

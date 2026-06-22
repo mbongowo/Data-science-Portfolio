@@ -1,0 +1,27 @@
+version: 2
+
+# Exposures declare downstream uses of the warehouse (dashboards, apps, ML jobs)
+# so they appear in the lineage graph and `dbt build --select +exposure:...`
+# can run everything a dashboard depends on. This documents the BI dashboard
+# that reads the marts, making the data contract explicit end to end.
+exposures:
+  - name: imdb_ratings_dashboard
+    label: "IMDb Ratings Overview"
+    type: dashboard
+    maturity: medium
+    url: "https://bi.example.com/dashboards/imdb-ratings"
+    description: >
+      Executive dashboard for IMDb title ratings: average rating and vote volume
+      by title type and release year, the rating-band mix over time, and the
+      high-band share per type. Refreshed only after `dbt build` passes, so a
+      failing test stops the dashboard from showing data built on bad inputs.
+
+    # The models this dashboard reads. dbt warns if any are removed or renamed.
+    depends_on:
+      - ref('dim_title')
+      - ref('fct_title_rating')
+      - ref('agg_rating_by_type')
+
+    owner:
+      name: Joseph Mbuh
+      email: mbuhjoe48@gmail.com

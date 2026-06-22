@@ -20,24 +20,37 @@ late events, session gaps) are written out, not hand-waved.
 the funnel** `view -> search -> add_to_cart -> checkout -> purchase`, and how do
 event volumes move minute by minute?
 
-**Answer (illustrative).** The funnel is monotonically non-increasing by
-construction: every user who checks out has already viewed. The drop between
-adjacent steps is where attention belongs. Per-minute counts come from the same
-event-time windows the streaming job emits, so the offline number and the
-streamed number agree on a settled window.
+**Answer.** The funnel is monotonically non-increasing by construction: every
+user who checks out has already viewed. The drop between adjacent steps is where
+attention belongs. Per-minute counts come from the same event-time windows the
+streaming job emits, so the offline number and the streamed number agree on a
+settled window.
 
-<!-- Running the offline CLI writes counts to outputs/; render the funnel bar
-     chart from the notebook and drop the PNG here. -->
+The numbers below are produced by `clickstream demo` (`pixi run demo` /
+`make demo`), which drives the **real** pure-Python core
+(`tumbling_counts`, `sessionize`, `funnel`, `events_per_minute`) over a small,
+**seeded synthetic** clickstream (`seed=0`, 200 users, 659 events). They are
+fully reproducible in well under a second and verified in CI:
 
 ```
-events/min (settled)  : 0->3   60->1   120->2          (tumbling, window=60s)
-funnel reach          : view=50  search=38  add_to_cart=21  checkout=12  purchase=7
-session gap           : 1800s  -> 63 sessions across 50 users
-watermark             : allowed lateness 120s; 4 events dropped as late
+total events          : 659 across 200 users
+events/min (peak)     : 13                                  (tumbling, window=60s)
+sessions              : 200  (session gap = 1800s)
+funnel reach          : view=200  search=164  add_to_cart=62  checkout=36  purchase=21
+funnel conversion     : view 100% -> search 82% -> add_to_cart 31% -> checkout 18% -> purchase 10.5%
 ```
 
-*(Numbers above are illustrative placeholders; run the pipeline on your feed to
-regenerate them.)*
+### Reproduce
+
+```bash
+pixi run demo        # or: make demo   (writes outputs/{events_per_minute,funnel}.csv + summary.json)
+```
+
+These are **real numbers from a small, seeded synthetic demo**, designed to be
+regenerated in seconds and pinned by a test so the figures above stay honest.
+The full Kafka + Spark Structured Streaming pipeline applies the **identical**
+windowing and sessionisation logic to a real, high-volume stream; only the data
+source and scale differ, not the core arithmetic.
 
 ### What this does **not** let you conclude
 
@@ -67,19 +80,46 @@ data/README.md         # Wikimedia EventStreams firehose OR a synthetic generato
 src/clickstream/
   windows.py           # tumbling_counts, sliding_counts, sessionize, funnel  (pure Python)
   watermark.py         # is_late, advance_watermark                            (pure Python)
+  streaming.py         # top_k_heavy_hitters, reorder_within_lateness,
+                       #   funnel_time_to_convert, retention                   (pure Python)
   aggregate.py         # events_per_minute over a pandas DataFrame             (pandas)
+  demo.py              # run_demo: seeded synthetic stream driving the core    (numpy/pandas)
   cli.py               # `clickstream` console entry point (typer, lazy imports)
   pipeline.py          # Kafka produce/consume + Spark Structured Streaming (guarded)
+notebooks/
+  01_walkthrough.ipynb # imports the package, runs run_demo(0), demos the new primitives
 ```
 
-The interpretation-critical core is `windows.py`, `watermark.py`, and
-`aggregate.py`: plain Python plus numpy/pandas, no streaming engine. It is
-covered by **hand-derived known-answer tests** whose expected values are written
-into the test docstrings — a tumbling window of 10s over five events gives
-`{0: 2, 10: 2, 20: 1}`; sessionising `[0,1,2,10,11]` with a 5s gap gives
-`[0,0,0,1,1]`; the funnel example resolves to `[3, 2, 1]`; a watermark with 5s
-allowed lateness advances `0 -> 95 -> 98` and refuses to move back on a late
-event. These functions return point answers only.
+### Capabilities (pure-Python core)
+
+- **Windowing** — `tumbling_counts`, `sliding_counts` over half-open windows.
+- **Sessionisation** — `sessionize` splits on an inactivity gap.
+- **Conversion funnels** — `funnel` reach counts; `funnel_time_to_convert`
+  medians the seconds between consecutive completed steps.
+- **Heavy hitters** — `top_k_heavy_hitters` finds the top-K frequent keys with a
+  bounded-memory Misra-Gries summary, then reports exact counts.
+- **Out-of-order handling** — `reorder_within_lateness` re-orders an out-of-order
+  stream within an allowed-lateness watermark and counts dropped-too-late events.
+- **Watermarks** — `advance_watermark`, `is_late` for late-data decisions.
+- **Retention** — `retention` gives the fraction of users active in consecutive
+  periods.
+- **Per-minute volume** — `events_per_minute` over a pandas DataFrame.
+
+Every one of these is covered by a **hand-derived known-answer test** plus
+edge-case tests (empty input, single element, ties, all-late events).
+
+The interpretation-critical core is `windows.py`, `watermark.py`,
+`streaming.py`, and `aggregate.py`: plain Python plus numpy/pandas, no streaming
+engine. It is covered by **hand-derived known-answer tests** whose expected
+values are written into the test docstrings — a tumbling window of 10s over five
+events gives `{0: 2, 10: 2, 20: 1}`; sessionising `[0,1,2,10,11]` with a 5s gap
+gives `[0,0,0,1,1]`; the funnel example resolves to `[3, 2, 1]`; a watermark with
+5s allowed lateness advances `0 -> 95 -> 98` and refuses to move back on a late
+event; Misra-Gries on `[a,a,a,b,b,c,a,c,c]` keeps `{a, c}` and reports `[(a, 4),
+(c, 3)]`; reordering with 2s lateness drops one too-late event and emits the rest
+in timestamp order; the `view->cart->buy` time-to-convert medians are `[10.0,
+32.5]`; and retention over three periods is `[2/3, 1/2]`. These functions return
+point answers only.
 
 The Kafka producer/consumer and the Spark Structured Streaming job live in
 `pipeline.py`. Every `pyspark` and `kafka` import is **inside** a function, so

@@ -6,8 +6,10 @@ Spark streaming path that runs the same logic on an unbounded stream. It closes
 with what these numbers do not establish.
 
 The pure-Python core (`tumbling_counts`, `sliding_counts`, `sessionize`,
-`funnel`, `is_late`, `advance_watermark`, `events_per_minute`) runs with only
-numpy and pandas installed and is meant for small problems, for reproducing a
+`funnel`, `is_late`, `advance_watermark`, `events_per_minute`, plus the
+bounded-memory / event-time primitives `top_k_heavy_hitters`,
+`reorder_within_lateness`, `funnel_time_to_convert`, and `retention`) runs with
+only numpy and pandas installed and is meant for small problems, for reproducing a
 streamed result on a file, and for checking your understanding. The Kafka and
 Spark engine that real ingestion needs lives in `clickstream.pipeline`, which
 imports `pyspark` and `kafka` lazily, so the core and the test suite run without
@@ -118,6 +120,89 @@ window before that gives a partial count. The number of events dropped as late
 is a real part of the result; surface it rather than hiding it. Widening the
 allowed lateness recovers more stragglers at the cost of holding windows open
 longer.
+
+## 4b. Bounded-memory and event-time primitives
+
+Beyond the four window/funnel primitives, the pure-Python core
+(`clickstream.streaming`) adds the analytics a reviewer expects from a streaming
+core. All four are importable from the top-level package and run on plain lists
+and dicts.
+
+### Heavy hitters / top-K (Misra-Gries)
+
+```python
+from clickstream import top_k_heavy_hitters
+
+keys = ["a", "a", "a", "b", "b", "c", "a", "c", "c"]
+top_k_heavy_hitters(keys, 2)              # -> [("a", 4), ("c", 3)]
+top_k_heavy_hitters(keys, 2, counters=2)  # same, with an explicit 2-counter summary
+```
+
+Misra-Gries keeps a fixed number of counters (memory independent of the number of
+distinct keys) and is guaranteed to retain every key occurring more than
+`n / (counters + 1)` times; a second exact pass then reports true counts and ranks
+the top K (descending count, ties by ascending key). The default `counters` is
+`max(2k, k+8)`, generous enough to return the exact top-K on skewed clickstream
+keys. It is a bounded-memory approximation: on an adversarial near-uniform stream
+a heavy hitter can be evicted, so raise `counters` (to `>=` the number of distinct
+keys for exactness) when the stream is not skewed.
+
+### Out-of-order reordering within allowed lateness
+
+```python
+from clickstream import reorder_within_lateness
+
+events = [(10, "a"), (12, "b"), (11, "c"), (9, "d"), (13, "e")]  # arrival order
+ordered, dropped = reorder_within_lateness(events, allowed_lateness_s=2)
+# ordered  -> [(10, "a"), (11, "c"), (12, "b"), (13, "e")]
+# dropped  -> 1   (the event at ts=9 fell behind the watermark)
+```
+
+A watermark tracks `max_ts_seen - allowed_lateness_s` (the same rule as
+`advance_watermark`). An arriving event strictly below the watermark is *too late
+to place* and is counted as dropped; everything else is buffered and emitted in
+timestamp order (ties keep arrival order). Widen `allowed_lateness_s` to rescue
+more stragglers at the cost of holding events longer; the dropped count is part of
+the result, not an error to hide.
+
+### Funnel time-to-convert
+
+```python
+from clickstream import funnel_time_to_convert
+
+user_events = {
+    "u1": [(0, "view"), (10, "cart"), (30, "buy")],
+    "u2": [(0, "view"), (20, "cart")],
+    "u3": [(5, "view"), (5, "cart"), (50, "buy")],
+}
+funnel_time_to_convert(user_events, ["view", "cart", "buy"])  # -> [10.0, 32.5]
+```
+
+For each adjacent step pair, this collects per-user durations between the first
+in-order occurrence of each step and returns their median (mean of the two middles
+when even). A transition no user completed yields `None`. Read it next to the
+funnel *reach*: reach says how many advance, time-to-convert says how long it takes
+those who do.
+
+### Retention across periods
+
+```python
+from clickstream import retention
+
+users = {
+    "u1": [10, 120],
+    "u2": [50, 150, 250],
+    "u3": [30],
+    "u4": [220],
+}
+retention(users, period_s=100)  # -> [0.666..., 0.5]
+```
+
+Time is bucketed into fixed periods (`floor(ts / period_s)`). For each pair of
+consecutive periods, retention is the fraction of the earlier period's active
+users who are also active in the next. Like the session gap, `period_s` is a
+modelling choice: a daily and a weekly period tell different stories from the same
+events, so report it.
 
 ## 5. The streaming path (Kafka + Spark)
 

@@ -6,11 +6,14 @@ label propagation and triangle counting at scale, interpret the central nodes an
 communities, sample a representative subgraph for a figure, and close with what
 these statistics do not establish.
 
-The pure-numpy reference functions (`pagerank`, `connected_components`,
-`label_propagation`, `triangle_count`, `per_node_triangles`) run with only numpy
-installed and operate on a **dense** adjacency, so they are for small problems
-(up to a few thousand nodes) and for checking your understanding. A SNAP graph
-with tens of millions of edges does not fit a dense matrix; that runs on Spark in
+The pure-numpy reference functions (`pagerank`, `weighted_pagerank`,
+`personalized_pagerank`, `connected_components`, `label_propagation`,
+`modularity`, `triangle_count`, `per_node_triangles`, `betweenness_centrality`,
+`k_core_decomposition`, `degree_stats`) run with only numpy installed and operate
+on a **dense** adjacency, so they are for small problems (up to a few thousand
+nodes) and for checking your understanding. A SNAP graph with tens of millions of
+edges does not fit a dense matrix; the four core algorithms (PageRank, connected
+components, label propagation, triangle counting) run on Spark in
 `bdgraph.graphframes_pipeline`, described below.
 
 ## 1. Install
@@ -150,6 +153,52 @@ assert per_node.sum() == 3 * total   # each triangle touches three nodes
 A high global count relative to a random graph of the same density means the
 network is locally clustered. The per-node counts feed the local clustering
 coefficient if you want it.
+
+## 6b. Weighted and personalized PageRank
+
+Plain `pagerank` already honours edge weights by normalising each node's
+out-edges by its out-strength; `weighted_pagerank` is the same numerics under an
+explicit name. `personalized_pagerank` adds a **restart** (personalization)
+vector: when the surfer teleports it lands on that distribution rather than
+uniformly, so the ranking is biased toward the restart set.
+
+```python
+from bdgraph import weighted_pagerank, personalized_pagerank
+
+wp = weighted_pagerank(adj, damping=0.85)          # heavier edges carry more mass
+restart = [1, 0, 0, 0]                             # bias toward node 0 (auto-normalised)
+ppr = personalized_pagerank(adj, restart, damping=0.85)
+```
+
+A uniform restart reproduces plain PageRank exactly. Personalized PageRank
+answers "important *relative to this restart set*", not "important in general":
+move the restart mass and the ranking moves with it.
+
+## 6c. Betweenness, k-core and modularity
+
+Three more structural diagnostics, all exact on the dense reference path.
+
+```python
+from bdgraph import betweenness_centrality, k_core_decomposition, modularity, degree_stats
+
+bc = betweenness_centrality(adj, normalized=True)  # Brandes, undirected, [0, 1]
+core = k_core_decomposition(adj)                   # core number per node
+q = modularity(adj, labels)                        # partition quality vs. null
+stats = degree_stats(adj)                          # mean/max/min degree + histogram
+```
+
+- **Betweenness** (Brandes' algorithm) is the share of shortest paths a node sits
+  on. The raw form gives a star centre `(n-1)(n-2)/2` and path endpoints `0`; the
+  normalised form divides by the pair count so scores lie in `[0, 1]`. It is
+  exact but `O(nm)`, so it is for small graphs, not SNAP-scale networks.
+- **k-core** peels the lowest-degree node repeatedly; a node's core number is the
+  deepest core it survives in. A clique `K_m` has every core number `m-1`, a path
+  `1`, a cycle `2`. Deep cores flag densely mutually-connected regions.
+- **Modularity** scores a partition against the configuration-model null:
+  positive means denser-within than chance. Two disjoint triangles partitioned as
+  themselves give `Q = 0.5`; one big community gives `Q = 0`. Modularity has a
+  resolution limit, so a higher `Q` is "denser-within", not automatically
+  "better".
 
 ## 7. Running at scale on Spark GraphFrames
 

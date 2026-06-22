@@ -138,6 +138,13 @@ def main(argv: list[str] | None = None) -> None:
         """Compare flags against HDFS labels."""
         run_evaluate(config, out)
 
+    @app.command()
+    def demo(seed: int = 0, out: str = "outputs") -> None:
+        """Run the end-to-end demo on a seeded synthetic log (no Spark)."""
+        from loganomaly.demo import run_demo
+
+        print(json.dumps(run_demo(seed, out), indent=2))
+
     app(args=argv)
 
 

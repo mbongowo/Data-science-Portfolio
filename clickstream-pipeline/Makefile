@@ -1,10 +1,11 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install test lint format clean produce consume dashboard
+.PHONY: help install test lint format clean demo produce consume dashboard
 
 help:
 	@echo "Targets:"
 	@echo "  install    Install the package + dev/stream extras (pip)"
 	@echo "  test       Run pytest (pure-Python known-answer tests always run)"
+	@echo "  demo       Run the seeded synthetic demo end-to-end (real numbers)"
 	@echo "  lint       ruff check + mypy"
 	@echo "  format     ruff format"
 	@echo "  produce    Publish events onto the Kafka topic (needs the stack)"
@@ -17,6 +18,9 @@ install:
 
 test:
 	pytest
+
+demo:
+	clickstream demo
 
 lint:
 	ruff check .

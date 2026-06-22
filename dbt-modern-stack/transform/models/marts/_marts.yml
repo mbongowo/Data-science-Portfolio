@@ -39,9 +39,54 @@ models:
         description: "Mean user rating, 1.0-10.0."
         tests:
           - not_null
+          # Range guard (dbt_utils): IMDb ratings live in [1.0, 10.0]. The pure-
+          # pandas mirror is dwh.dq.test_accepted_range.
+          - dbt_utils.accepted_range:
+              min_value: 1.0
+              max_value: 10.0
+              inclusive: true
+      - name: num_votes
+        description: "Vote count behind the rating."
+        tests:
+          - not_null
+          # A rated title always has at least one vote.
+          - dbt_utils.accepted_range:
+              min_value: 1
       - name: rating_band
         description: "Derived band for the BI layer."
         tests:
           - not_null
           - accepted_values:
               values: ["high", "medium", "low"]
+
+  - name: agg_rating_by_type
+    description: >
+      Aggregate read by the BI dashboard: one row per title_type with rated
+      title count, mean rating, total votes, and the high-band share.
+    columns:
+      - name: title_type
+        description: "Kind of title; one row per type."
+        tests:
+          - not_null
+          - unique
+      - name: num_rated_titles
+        description: "Count of rated titles of this type."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+      - name: avg_rating
+        description: "Mean average_rating across the type."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1.0
+              max_value: 10.0
+              inclusive: true
+      - name: high_band_share
+        description: "Fraction of titles in the 'high' band (0.0-1.0)."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              max_value: 1.0
+              inclusive: true

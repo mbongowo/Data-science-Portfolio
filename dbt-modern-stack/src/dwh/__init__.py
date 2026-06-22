@@ -20,13 +20,23 @@ lazily and are not imported by this module or by the test suite.
 
 from __future__ import annotations
 
-from dwh.dimensional import build_date_dim, surrogate_key
+from dwh.dimensional import (
+    SCD2_FAR_FUTURE,
+    build_date_dim,
+    scd2_snapshot,
+    surrogate_key,
+)
 from dwh.dq import (
     TestResult,
     TestSpec,
     run_suite,
+    suite_failed,
+    test_accepted_range,
     test_accepted_values,
+    test_expression,
+    test_freshness,
     test_not_null,
+    test_not_null_where,
     test_relationships,
     test_unique,
 )
@@ -36,11 +46,18 @@ __all__ = [
     "test_unique",
     "test_accepted_values",
     "test_relationships",
+    "test_accepted_range",
+    "test_not_null_where",
+    "test_expression",
+    "test_freshness",
     "run_suite",
+    "suite_failed",
     "TestResult",
     "TestSpec",
     "surrogate_key",
     "build_date_dim",
+    "scd2_snapshot",
+    "SCD2_FAR_FUTURE",
     "__version__",
 ]
 

@@ -9,6 +9,13 @@ Three subcommands map to the three reported algorithms::
 Each loads the edge list named in the config, runs the algorithm, and writes a
 JSON summary (plus a CSV of per-node results) to the output directory.
 
+A fourth subcommand needs no config or data::
+
+    bdgraph demo --seed 0 --out outputs
+
+It synthesises a small seeded stochastic block model and runs the whole
+pure-numpy core on it end-to-end (see :mod:`bdgraph.demo`).
+
 The numeric core (`bdgraph.pagerank`, `.components`, `.community`, `.triangles`)
 is pure numpy and dense, so it is meant for graphs up to a few thousand nodes.
 For a SNAP-scale graph use the Spark GraphFrames pipeline
@@ -139,6 +146,12 @@ def _cmd_triangles(cfg: dict[str, Any], out: Path) -> dict[str, Any]:
     return summary
 
 
+def _cmd_demo(cfg: dict[str, Any], out: Path) -> dict[str, Any]:
+    from bdgraph.demo import run_demo
+
+    return run_demo(seed=int(cfg.get("seed", 0)), out_dir=out)
+
+
 def _write(out: Path, name: str, summary: dict[str, Any]) -> None:
     out.mkdir(parents=True, exist_ok=True)
     with open(out / f"{name}_summary.json", "w", encoding="utf-8") as fh:
@@ -152,15 +165,24 @@ def main(argv: list[str] | None = None) -> int:
         p = sub.add_parser(name)
         p.add_argument("--config", default="config/graph.yaml")
         p.add_argument("--out", default="outputs")
+    # `demo` needs no config or downloaded data: it synthesises its own graph.
+    pd = sub.add_parser("demo")
+    pd.add_argument("--seed", type=int, default=0)
+    pd.add_argument("--out", default="outputs")
 
     args = parser.parse_args(argv)
-    cfg = _load_config(args.config)
     out = Path(args.out)
+
+    if args.command == "demo":
+        cfg: dict[str, Any] = {"seed": args.seed}
+    else:
+        cfg = _load_config(args.config)
 
     handlers = {
         "pagerank": _cmd_pagerank,
         "communities": _cmd_communities,
         "triangles": _cmd_triangles,
+        "demo": _cmd_demo,
     }
     summary = handlers[args.command](cfg, out)
     print(json.dumps(summary, indent=2))

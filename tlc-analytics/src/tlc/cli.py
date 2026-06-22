@@ -1,7 +1,9 @@
 """Command-line entry point for tlc-analytics.
 
-Two subcommands:
+Three subcommands:
 
+* ``tlc demo``      — run the reproducible pandas demo on seeded synthetic data
+  (no engines, no download) and print the headline insight numbers.
 * ``tlc mart``      — build the aggregated marts and write them to ``--out``.
 * ``tlc benchmark`` — run the engine bake-off and write a ranking summary.
 
@@ -28,6 +30,17 @@ def _build_app() -> Any:
     import typer  # lazy: CLI-only dependency
 
     app = typer.Typer(add_completion=False, help=__doc__)
+
+    @app.command()
+    def demo(
+        seed: int = 0,
+        out: str = "outputs",
+    ) -> None:
+        """Run the reproducible pandas demo on seeded synthetic trips."""
+        from tlc.demo import run_demo
+
+        result = run_demo(seed=seed, out_dir=out)
+        print(json.dumps(result, indent=2))
 
     @app.command()
     def mart(

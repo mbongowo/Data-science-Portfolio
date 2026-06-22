@@ -40,6 +40,7 @@ dev = { features = ["dev"], solve-group = "default" }
 
 [tasks]
 test = "pytest"
+demo = "sentiment demo --out outputs"
 lint = "ruff check . && mypy src"
 format = "ruff format ."
 ingest = "sentiment ingest --config config/reddit.yaml --out data/raw"

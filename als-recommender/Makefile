@@ -1,9 +1,10 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install train recommend evaluate test lint format clean
+.PHONY: help install demo train recommend evaluate test lint format clean
 
 help:
 	@echo "Targets:"
 	@echo "  install    Install the package + dev extras (pip)"
+	@echo "  demo       Run the seeded synthetic end-to-end demo (no data needed)"
 	@echo "  train      Fit ALS factors from the configured ratings"
 	@echo "  recommend  Write top-N recommendations for users"
 	@echo "  evaluate   Score ALS vs the popularity baseline (ranking metrics)"
@@ -14,6 +15,9 @@ help:
 
 install:
 	pip install -e ".[dev,spark]"
+
+demo:
+	recsys demo
 
 train:
 	recsys train --config config/movielens.yaml

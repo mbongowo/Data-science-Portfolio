@@ -99,18 +99,30 @@ correctness requirement, not a cosmetic one — an indicator that peeks ahead
 re-introduces look-ahead through the back door.
 
 ```python
-from backtest.indicators import sma, ema, rsi, rolling_vol
+from backtest.indicators import sma, ema, rsi, rolling_vol, macd, bollinger_bands, atr
 
 close = bars["close"]
 fast = sma(close, 10)
 slow = sma(close, 30)
 r14  = rsi(close, 14)                 # Wilder smoothing
 vol  = rolling_vol(close.pct_change(), 30)
+
+macd_df = macd(close, fast=12, slow=26, signal=9)   # macd / signal / histogram
+bb      = bollinger_bands(close, n=20, k=2.0)        # middle / upper / lower
+atr14   = atr(bars["high"], bars["low"], close, 14)  # Wilder ATR
 ```
 
 RSI uses Wilder's moving average (an EMA with `alpha = 1/n`). A strictly
 increasing series has no losses, so RSI is exactly 100 — the value the test
 pins.
+
+`macd` returns a three-column frame (`macd`, `signal`, `histogram`); on a
+constant series all three are `0`. `bollinger_bands` returns `middle` (the SMA)
+plus `upper`/`lower` at `k` population standard deviations; a flat series
+collapses the bands onto the price. `atr` is the Wilder average of the true
+range, where the true range uses the *previous* close (the first bar falls back
+to `high - low`), so a gap is captured even when the bar's own range is small.
+All three are strictly trailing — no peek ahead.
 
 ## 5. Specify a simple strategy
 
@@ -151,18 +163,35 @@ equity path is `[1.0, 1.0985, 1.20835, 1.20835]`.
 ## 7. Performance analytics
 
 ```python
-from backtest.performance import total_return, sharpe, max_drawdown
+from backtest.performance import (
+    total_return, sharpe, max_drawdown,
+    sortino, calmar, win_rate, turnover, exposure,
+)
+from backtest.engine import positions_from_signals
 
 rets = equity.pct_change().fillna(0.0)
+positions = positions_from_signals(signal)
+
 print(total_return(equity))                       # end-to-end growth
 print(sharpe(rets, periods_per_year=525600))      # 1-min bars, 24/7 market
 print(max_drawdown(equity))                        # worst peak-to-trough, positive
+print(sortino(rets, 525600))                       # downside-only risk adjustment
+print(calmar(equity, 525600))                      # CAGR / max drawdown
+print(win_rate(rets))                              # fraction of up bars
+print(turnover(positions))                         # avg per-bar position change
+print(exposure(positions))                         # fraction of bars in the market
 ```
 
 `sharpe` returns `0.0` when returns have no dispersion (a flat or constant
 series) instead of dividing by zero. `max_drawdown` is the largest
 `1 - equity / running_peak`, reported as a positive fraction
-(`[100,120,90,150]` gives `0.25`). The whole report is also produced by the CLI:
+(`[100,120,90,150]` gives `0.25`). `sortino` penalises only *downside*
+deviation and reports `+inf` when there is no downside and the mean is positive.
+`calmar` is the annualised (CAGR) return over max drawdown. `win_rate`,
+`turnover`, and `exposure` describe the *shape* of the strategy: how often it
+wins, how much it trades (turnover is exactly what costs are charged on), and
+how much of the time it is exposed. The whole report is also produced by the
+CLI:
 
 ```bash
 backtest run    --config config/strategy.yaml --bars data/raw/BTCUSDT-1min.parquet --out outputs
@@ -196,7 +225,48 @@ position over any bar depends only on prior information. The engine test asserts
 that a signal generated on bar `t` leaves bar `t`'s equity untouched and only
 bites from bar `t + 1`.
 
-## 9. How to interpret responsibly
+## 9. Validation discipline: walk-forward and cost sensitivity
+
+A single in-sample number is the easiest thing to fool yourself with. Two cheap
+guards live in `backtest.validation`.
+
+**Walk-forward, out-of-sample windows.** `walk_forward_splits` yields
+`(train, test)` index ranges that march forward in time. With the default
+`step = test`, the test windows are non-overlapping and contiguous, and every
+test index sits strictly after its own train window — so a strategy fit on
+`train` is reported only on data it never saw.
+
+```python
+from backtest.validation import walk_forward_splits
+
+for train_idx, test_idx in walk_forward_splits(len(close), train=300, test=100):
+    fit  = close.iloc[list(train_idx)]   # tune/select on this
+    oos  = close.iloc[list(test_idx)]    # report on this, untouched by the fit
+    # ... fit on `fit`, evaluate on `oos` ...
+```
+
+**Cost sensitivity.** `sensitivity_sweep` re-runs the *real* engine across a
+grid of fee and slippage assumptions and tabulates total return, so you can see
+how fast the edge erodes as costs rise. The zero-cost row reproduces the gross
+backtest exactly, and total return is (weakly) monotonically non-increasing as
+either cost grows.
+
+```python
+from backtest.validation import sensitivity_sweep
+
+sweep = sensitivity_sweep(
+    close, signal,
+    fee_grid=[0.0, 5.0, 10.0, 20.0],
+    slippage_grid=[0.0, 5.0, 10.0],
+)
+print(sweep)   # columns: fee_bps | slippage_bps | total_return
+```
+
+If the result only survives at an optimistic fee, that is exactly what the
+sweep is for. See [`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb)
+for both run end to end on the demo bars.
+
+## 10. How to interpret responsibly
 
 A passing backtest is evidence about one historical window, not a forecast.
 

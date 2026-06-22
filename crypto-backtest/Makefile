@@ -1,9 +1,10 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install bars run report test lint format clean
+.PHONY: help install demo bars run report test lint format clean
 
 help:
 	@echo "Targets:"
 	@echo "  install   Install the package + dev extras (pip)"
+	@echo "  demo      Run the full pipeline on a seeded synthetic tick series"
 	@echo "  bars      Resample raw ticks to OHLCV bars (Parquet)"
 	@echo "  run       Run the no-look-ahead backtest -> outputs/equity.parquet"
 	@echo "  report    Write the performance report from an equity curve"
@@ -14,6 +15,9 @@ help:
 
 install:
 	pip install -e ".[dev,scale]"
+
+demo:
+	backtest demo --seed 0 --out outputs
 
 bars:
 	backtest bars --config config/strategy.yaml --ticks data/raw/BTCUSDT-trades.csv --out data/raw/BTCUSDT-1min.parquet

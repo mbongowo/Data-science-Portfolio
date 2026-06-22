@@ -92,6 +92,20 @@ def trends(config: str, data: str, out: str) -> None:
     print(json.dumps(summary, indent=2))
 
 
+def demo(seed: int = 0, out: str = "outputs") -> None:
+    """Run the dependency-light end-to-end demo on seeded synthetic posts.
+
+    Drives the real pure-numpy/pandas core (clean -> lexicon score -> validate
+    -> aggregate -> tfidf) on a small deterministic synthetic corpus and writes
+    ``sentiment_timeseries.csv`` and ``summary.json`` under ``out``. Needs only
+    numpy/pandas/stdlib — no Spark, no model — so it runs anywhere.
+    """
+    from sentiment.demo import run_demo
+
+    result = run_demo(seed=seed, out_dir=out)
+    print(json.dumps(result, indent=2, default=str))
+
+
 def _build_app() -> Any:
     import typer
 
@@ -99,6 +113,7 @@ def _build_app() -> Any:
     app.command()(ingest)
     app.command()(score)
     app.command()(trends)
+    app.command()(demo)
     return app
 
 

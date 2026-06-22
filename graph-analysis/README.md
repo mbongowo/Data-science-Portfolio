@@ -5,12 +5,13 @@
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**Large-scale graph analytics**: run PageRank, connected components / label
-propagation, and triangle counting on a real network, and read the results
-honestly. The interpretation-critical algorithms are a pure-numpy reference
-layer with hand-derived tests; the same algorithms run at scale on Spark
-GraphFrames. Assumptions and what the numbers do *not* mean are written out, not
-hand-waved.
+**Large-scale graph analytics**: run PageRank (plain, weighted, and
+personalized), connected components / label propagation, triangle counting,
+betweenness centrality, k-core decomposition, modularity and degree statistics
+on a real network, and read the results honestly. The interpretation-critical
+algorithms are a pure-numpy reference layer with hand-derived tests; the core
+algorithms also run at scale on Spark GraphFrames. Assumptions and what the
+numbers do *not* mean are written out, not hand-waved.
 
 ---
 
@@ -21,25 +22,34 @@ hand-waved.
 central by PageRank, how many communities does the graph break into, and how
 clustered is it?
 
-**Answer (illustrative).** A handful of accounts dominate the PageRank mass; the
-graph is essentially one giant weakly-connected component with a long tail of
-tiny ones; and the global triangle count is high relative to a random graph of
-the same density, so the network is strongly locally clustered — friends of
-friends are friends.
-
-![Placeholder subgraph sample](outputs/.gitkeep)
-<!-- Running the Spark pipeline writes outputs/*.parquet; sample a subgraph with
-     bdgraph.viz and drop the PNG here. -->
+**Answer (reproducible demo).** The numbers below are **real**, produced by
+`pixi run demo` (equivalently `make demo` or `bdgraph demo`). The demo drives the
+exact same pure-numpy core on a small **seeded synthetic stochastic block model**
+(SBM) with three planted communities, so the output is verifiable by eye and
+deterministic in seconds. The same four algorithms run unchanged at SNAP scale on
+Spark GraphFrames over a real network such as LiveJournal.
 
 ```
-PageRank (d=0.85)   : top nodes  [ 12, 4815, 991, 30172, 7 ]  (mass concentrated)
-Components          : 1 giant weakly-connected component covers > 99% of nodes
-Label propagation   : ~ thousands of communities, heavy-tailed in size
-Triangle counting   : global triangles ~ 2.85e8   avg clustering ~ 0.27
+Graph (seeded SBM)  : 30 nodes, 83 edges, 3 planted communities
+PageRank (d=0.85)   : top nodes  [ 16, 11, 6, 4, 10 ]  (scores 0.0475, 0.0459, 0.0411, 0.0410, 0.0405)
+Components          : 1 connected component (the inter-block edges tie it together)
+Label propagation   : 3 communities found  ==  3 planted  (exact recovery)
+Triangle counting   : 69 global triangles   avg local clustering ~ 0.505
+Betweenness (Brandes): top node 16 (the same hub PageRank flags)
+k-core              : max core number 5   degree mean 5.53 / max 9
+Modularity (planted): Q = 0.559  (single-community partition gives Q = 0)
 ```
 
-*(Numbers above are illustrative placeholders; run the pipeline to regenerate
-them for the graph you downloaded.)*
+*Interpretation:* on a clean planted graph the core behaves as it should —
+label propagation recovers exactly the 3 planted communities, the planted
+partition has high positive modularity (~0.56), the sparse inter-community edges
+leave a single connected component, and the dense within-community wiring shows
+up as a high local clustering coefficient and a deep k-core. The highest-PageRank
+node is also the highest-betweenness node: the best-connected hub of the densest
+block.
+
+**Reproduce:** `pixi run demo`  (writes `outputs/pagerank_top.csv`,
+`outputs/communities.csv`, `outputs/summary.json`; pinned in `tests/test_demo.py`).
 
 ### What this analysis does **not** let you conclude
 
@@ -70,29 +80,41 @@ config/graph.yaml         # edge file, directed flag, damping, max_iter, tol, al
         |
 src/bdgraph/
   pagerank.py             # power iteration on a dense adjacency, dangling-node safe
+  centrality.py           # weighted + personalized PageRank, Brandes betweenness
   components.py           # union-find connected components + num_components
   community.py            # deterministic label propagation (seeded, lowest-label tie)
+  structure.py            # k-core decomposition, modularity, degree statistics
   triangles.py            # trace(A^3)/6 global, diag(A^3)/2 per node
-  graphframes_pipeline.py # the same algorithms at scale on Spark (lazy imports)
+  graphframes_pipeline.py # the core algorithms at scale on Spark (lazy imports)
   viz.py                  # sample + draw a small subgraph (lazy networkx/matplotlib)
-  cli.py                  # `bdgraph` entry point: pagerank / communities / triangles
+  demo.py                 # seeded SBM end-to-end demo over the real core (no data)
+  cli.py                  # `bdgraph` entry point: demo / pagerank / communities / triangles
+notebooks/
+  01_walkthrough.ipynb    # runs run_demo(0) and shows betweenness / k-core / modularity
 ```
 
-The numeric core (`pagerank`, `connected_components`, `label_propagation`,
-`triangle_count`) is pure numpy / stdlib with no third-party dependency, so it
-is always importable and is the basis of the tests. It is covered by
-**hand-derived known-answer tests** whose expected values are computed by hand
-on tiny graphs: a symmetric two-node graph gives PageRank *[1/2, 1/2]*, a
-directed 3-cycle gives the uniform *[1/3, 1/3, 1/3]*; a single triangle counts
-*1* and the complete graph *K4* counts *4*; two disjoint cliques resolve to
-exactly two communities. Spark GraphFrames and networkx are imported **lazily**
-inside their wrappers and are never touched by the core or the test suite, so
-the tests run with only numpy, pandas and pyyaml installed.
+The numeric core is pure numpy / stdlib with no third-party dependency, so it is
+always importable and is the basis of the tests. It now covers PageRank (plain,
+`weighted_pagerank`, and restart-biased `personalized_pagerank`),
+`connected_components`, `label_propagation` scored by `modularity`,
+`triangle_count`, `betweenness_centrality` (Brandes), `k_core_decomposition` and
+`degree_stats`. Each is covered by **hand-derived known-answer tests** whose
+expected values are computed by hand on tiny graphs: a symmetric two-node graph
+gives PageRank *[1/2, 1/2]* and a directed 3-cycle the uniform *[1/3, 1/3, 1/3]*;
+a single triangle counts *1* and *K4* counts *4*; two disjoint cliques resolve to
+exactly two communities; an *m*-clique has every k-core number *m-1* and a path
+*1*; a star centre has betweenness *(n-1)(n-2)/2*, path endpoints *0*; two
+disjoint triangles partitioned as themselves give modularity *Q = 0.5*. Spark
+GraphFrames and networkx are imported **lazily** inside their wrappers and are
+never touched by the core or the test suite, so the tests run with only numpy,
+pandas and pyyaml installed.
 
 See [`USAGE.md`](USAGE.md) for the end-to-end workflow: load an edge list, run
-the four algorithms at scale, interpret the central nodes and communities,
-sample a subgraph for a figure, and a section on what these statistics do not
-prove.
+the algorithms (at scale for the core four), interpret the central nodes,
+communities, cores and betweenness, sample a subgraph for a figure, and a section
+on what these statistics do not prove. A short
+[`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb) runs the demo
+and exercises betweenness, k-core and modularity on the SBM graph.
 
 ---
 
@@ -102,6 +124,7 @@ prove.
 
 ```bash
 pixi install            # resolves deps and GENERATES pixi.lock (not committed)
+pixi run demo           # seeded SBM demo; needs no downloaded data
 # download an edge list first (see data/README.md), then:
 pixi run pagerank
 pixi run communities

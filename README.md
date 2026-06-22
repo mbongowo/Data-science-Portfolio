@@ -40,6 +40,12 @@ public dataset, with an architecture that runs locally or on a free cloud tier.
 The differentiator in each is honesty: a benchmark with numbers, an evaluation
 metric against labels, or a quantified finding — not a tutorial.
 
+Every one ships a one-command demo (`pixi run demo` or `make demo`) that drives
+the real numeric core over a small, seeded synthetic dataset in seconds, so the
+numbers in each README are reproducible rather than illustrative. A walkthrough
+notebook in each `notebooks/` folder shows the core and the extra capabilities in
+use.
+
 | # | Folder | What it does | Core engine |
 |---|--------|--------------|-------------|
 | 1 | [`clickstream-pipeline`](./clickstream-pipeline) | A real-time event-analytics pipeline: ingest a high-volume stream and turn raw clicks into live windowed metrics, with a watermarking story for late/out-of-order events. | Kafka + Spark Structured Streaming |

@@ -8,10 +8,11 @@
 **Unsupervised log anomaly detection.** Collapse raw log lines to event
 templates (Drain-lite masking), count templates per session to build an
 event-count matrix, score each session with a transparent detector (PCA
-reconstruction error or a z-score rule), and — where labels exist — measure
-precision / recall / F1. A separate Spark + IsolationForest path scales the same
-pipeline to the full corpus. What the numbers do and do not prove is written
-out, not hand-waved.
+reconstruction error, a robust Mahalanobis distance, template rarity, or a
+z-score rule), and — where labels exist — measure precision / recall / F1 and
+compare detectors by PR-AUC / ROC-AUC. A separate Spark + IsolationForest path
+scales the same pipeline to the full corpus. What the numbers do and do not
+prove is written out, not hand-waved.
 
 ---
 
@@ -20,27 +21,36 @@ out, not hand-waved.
 **Question.** Given only unlabelled HDFS logs, can we flag the anomalous blocks —
 the ones an operator would want to look at — without training on labels?
 
-**Answer (illustrative).** Yes, with caveats. Templating reduces ~11M HDFS lines
-to a few dozen event types; the per-block event-count matrix is dominated by a
-low-rank "normal" subspace, so a rank-``k`` PCA reconstruction error separates
-the rare event mixes. Flagging blocks above the 99th percentile of error
-recovers most labelled anomalies at a usable precision.
+**Answer.** Yes, with caveats. Templating reduces the log to a few event types;
+the per-block event-count matrix is dominated by a low-rank "normal" subspace, so
+a rank-``k`` PCA reconstruction error separates the rare event mixes. Flagging
+the blocks above a quantile of the error recovers most labelled anomalies at a
+usable precision.
 
-![Placeholder reconstruction-error / PR plot](outputs/.gitkeep)
-<!-- Running `make detect` then `make evaluate` writes outputs/metrics.json;
-     render the error histogram / PR curve from the notebook and drop the PNG here. -->
+The numbers below are **real and reproducible in under a second** — they come
+from a small, seeded **synthetic** HDFS-like log (300 block sessions, ~15%
+anomalous) built so the result is deterministic and runnable anywhere, including
+CI, with only numpy / pandas / pyyaml + stdlib (no Spark, no scikit-learn). The
+demo drives the *identical* templating + PCA detection + metrics core that the
+full Spark pipeline runs on the real labelled Loghub HDFS_v1 set.
 
 ```
-detector         : PCA reconstruction error, k=3, flag > 99th percentile
-blocks scored    : 575,061   (labelled Normal/Anomaly via anomaly_label.csv)
-precision        : 0.88
-recall           : 0.81
-F1               : 0.84
-confusion matrix : tn=558,123  fp=2,210  fn=3,190  tp=13,538
+detector         : PCA reconstruction error, k=3, flag > 0.85 quantile
+blocks scored    : 300        (seeded synthetic, labelled Normal/Anomaly)
+templates found  : 8
+true anomalies   : 45
+precision        : 0.74
+recall           : 0.69
+F1               : 0.71
+confusion matrix : tn=244  fp=11  fn=14  tp=31
 ```
 
-*(Numbers above are illustrative placeholders; run the pipeline to regenerate
-them for the configured detector and threshold.)*
+**Reproduce:** `pixi run demo` (or `make demo`, or
+`loganomaly demo`) — writes `outputs/templates.csv`, `outputs/scores.csv`,
+`outputs/summary.json`. The separation is deliberately imperfect: a few benign
+rare events become false positives and a subtle minority of anomalies (which only
+*omit* normal events) are missed, which is why precision and recall sit below
+1.0 — a defensible operating point, not a staged perfect score.
 
 ### What this analysis does **not** let you conclude
 
@@ -71,23 +81,46 @@ data/README.md            # how to obtain Loghub HDFS_v1 (logs + anomaly_label.c
         |
 src/loganomaly/
   templating.py     # Drain-lite: mask_line (blk_/hex/ip:port/number -> <*>), template_id
-  features.py       # event_count_matrix: session x template counts
-  detect.py         # pca_reconstruction_error, zscore_anomalies, flag (pure numpy)
-  evaluate.py       # precision_recall_f1, confusion_matrix
+  features.py       # event_count_matrix; template_idf + session_rarity; count_invariants
+  detect.py         # pca_reconstruction_error, mahalanobis_scores, zscore_anomalies, flag
+  evaluate.py       # precision_recall_f1, confusion_matrix; pr_curve, roc_curve, auc
   spark_pipeline.py # Spark ingest/parse at scale + optional IsolationForest (lazy)
   cli.py            # `loganomaly parse|detect|evaluate` console entry point
 ```
 
-The numeric core (templating, features, the PCA / z-score detectors, the
-metrics) is a pure-numpy / pandas / stdlib layer with no heavy dependency. It is
-covered by **hand-derived known-answer tests**: the worked HDFS line
+The numeric core (templating, features, the detectors, the metrics) is a
+pure-numpy / pandas / stdlib layer with no heavy dependency. It is covered by
+**hand-derived known-answer tests**: the worked HDFS line
 `Receiving block blk_123 src: /10.0.0.1:50010 size 4096` masks to
 `Receiving block <*> src: <*> size <*>`; a rank-1 event-count block plus one
-off-pattern row puts the outlier's PCA reconstruction error on top; the metric
-case `tp=2, fp=1, fn=1` gives precision = recall = F1 = 2/3. The heavy engines
-(Spark parsing of the full corpus, sklearn IsolationForest) live in
-`spark_pipeline.py` behind lazy imports, so the core and the test suite run
-without Spark or scikit-learn installed.
+off-pattern row puts the outlier's PCA reconstruction error on top; the 1-D
+Mahalanobis case `[0,0,0,0,10]` scores `[0.25, 0.25, 0.25, 0.25, 4.0]`; a
+perfectly separated score set gives ROC-AUC = 1.0; the metric case
+`tp=2, fp=1, fn=1` gives precision = recall = F1 = 2/3. The heavy engines (Spark
+parsing of the full corpus, sklearn IsolationForest) live in `spark_pipeline.py`
+behind lazy imports, so the core and the test suite run without Spark or
+scikit-learn installed.
+
+### Capabilities (pure-numpy core)
+
+- **Templating** — `mask_line`, `template_id`: collapse raw lines to event
+  templates (Drain-lite masking).
+- **Features** — `event_count_matrix` (session x template counts);
+  `template_idf` + `session_rarity` (inverse-frequency rarity weighting, a
+  cheap label-free score); `count_invariants` (flag sessions whose per-template
+  counts fall outside a learned per-column quantile band).
+- **Detectors** — `pca_reconstruction_error` (distance from the low-rank
+  "normal" subspace); `mahalanobis_scores` + `mahalanobis_threshold` (robust
+  whitened distance via a covariance pseudo-inverse, stable under constant /
+  collinear columns); `zscore_anomalies`; `flag` (quantile thresholding).
+- **Evaluation** — `precision_recall_f1`, `confusion_matrix`; `pr_curve`,
+  `roc_curve`, and `auc` (trapezoid rule) for threshold-free comparison.
+
+Because the detectors emit a continuous score, they can be **compared directly
+via PR-AUC / ROC-AUC** without committing to one threshold — a higher AUC is the
+better ranker. `notebooks/01_walkthrough.ipynb` runs the demo and tabulates
+PCA vs Mahalanobis vs rarity this way (on the seeded corpus Mahalanobis leads on
+both AUCs). The labels are used only to *score* the ranking, never to fit it.
 
 See [`USAGE.md`](USAGE.md) for the end-to-end workflow: ingest, templating,
 feature vectors, detection, evaluation, and a section on what these flags do not

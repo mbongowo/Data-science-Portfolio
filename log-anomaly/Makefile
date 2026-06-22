@@ -1,9 +1,10 @@
 # Convenience targets. These assume an activated environment (pixi or venv).
-.PHONY: help install parse detect evaluate test lint format clean
+.PHONY: help install demo parse detect evaluate test lint format clean
 
 help:
 	@echo "Targets:"
 	@echo "  install   Install the package + dev extras (pip)"
+	@echo "  demo      Run the seeded synthetic end-to-end demo (no Spark)"
 	@echo "  parse     Mask + template raw logs into event-count features"
 	@echo "  detect    Score sessions with the configured detector (pca / zscore)"
 	@echo "  evaluate  Compare flags against HDFS labels (precision/recall/F1)"
@@ -14,6 +15,9 @@ help:
 
 install:
 	pip install -e ".[dev,spark,viz]"
+
+demo:
+	loganomaly demo --out outputs
 
 parse:
 	loganomaly parse --config config/hdfs.yaml --out outputs

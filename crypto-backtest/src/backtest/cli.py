@@ -2,9 +2,13 @@
 
 Three subcommands cover the workflow:
 
+    backtest demo   --seed 0 --out outputs
     backtest bars   --config config/strategy.yaml --ticks ... --out ...
     backtest run    --config config/strategy.yaml --bars  ... --out outputs
     backtest report --config config/strategy.yaml --equity ... --out outputs
+
+The ``demo`` subcommand drives the whole pipeline on a small seeded synthetic
+tick series with no external data — a one-command, reproducible smoke run.
 
 The heavy imports (pandas IO, the engine) happen inside the command functions
 so that importing this module — for ``--help`` or testing — never pulls in the
@@ -29,6 +33,15 @@ def _load_config(path: str | Path) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Commands (heavy imports are local)
 # --------------------------------------------------------------------------- #
+def cmd_demo(seed: int, out: str) -> dict[str, Any]:
+    """Run the full pipeline on a seeded synthetic tick series (no external data)."""
+    from backtest.demo import run_demo
+
+    result = run_demo(seed=seed, out_dir=out)
+    print(json.dumps(result, indent=2, default=str))
+    return result
+
+
 def cmd_bars(config: str, ticks: str, out: str) -> None:
     """Resample a raw tick CSV to OHLCV bars and write Parquet."""
     import pandas as pd
@@ -135,6 +148,11 @@ def main(argv: list[str] | None = None) -> int:
     app = typer.Typer(add_completion=False, help=__doc__)
 
     @app.command()
+    def demo(seed: int = 0, out: str = "outputs"):
+        """Run the full pipeline on a seeded synthetic tick series."""
+        cmd_demo(seed, out)
+
+    @app.command()
     def bars(config: str = "config/strategy.yaml", ticks: str = ..., out: str = ...):
         """Resample raw ticks to OHLCV bars."""
         cmd_bars(config, ticks, out)
@@ -165,6 +183,12 @@ def _argparse_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="backtest", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
+    p_demo = sub.add_parser(
+        "demo", help="Run the full pipeline on a seeded synthetic tick series."
+    )
+    p_demo.add_argument("--seed", type=int, default=0)
+    p_demo.add_argument("--out", default="outputs")
+
     p_bars = sub.add_parser("bars", help="Resample raw ticks to OHLCV bars.")
     p_bars.add_argument("--config", default="config/strategy.yaml")
     p_bars.add_argument("--ticks", required=True)
@@ -181,7 +205,9 @@ def _argparse_main(argv: list[str] | None = None) -> int:
     p_rep.add_argument("--out", default="outputs")
 
     args = parser.parse_args(argv)
-    if args.command == "bars":
+    if args.command == "demo":
+        cmd_demo(args.seed, args.out)
+    elif args.command == "bars":
         cmd_bars(args.config, args.ticks, args.out)
     elif args.command == "run":
         cmd_run(args.config, args.bars, args.out)

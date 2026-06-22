@@ -88,3 +88,87 @@ def tfidf(docs: list[str]) -> tuple[np.ndarray, list[str]]:
     df = (tf > 0).sum(axis=0)
     idf = np.log((n + 1) / (df + 1)) + 1.0
     return tf * idf, vocab
+
+
+def nmf(
+    X: np.ndarray,
+    k: int,
+    iters: int = 200,
+    seed: int = 0,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Non-negative matrix factorisation by multiplicative updates (pure numpy).
+
+    Factorise a non-negative ``(N, V)`` matrix ``X`` (e.g. a TF-IDF or
+    bag-of-words matrix) into two non-negative factors ``W`` ``(N, k)`` and ``H``
+    ``(k, V)`` such that ``W @ H`` approximately reconstructs ``X``. The ``k``
+    rows of ``H`` are interpretable as *topics* over the vocabulary, and row
+    ``d`` of ``W`` is document ``d``'s weight on each topic — a transparent topic
+    model that, unlike SVD, never produces negative loadings.
+
+    The optimisation uses Lee & Seung's multiplicative update rules for the
+    Frobenius reconstruction error :math:`\lVert X - WH \rVert_F^2`:
+
+    .. math::
+
+        H \leftarrow H \odot \frac{W^\top X}{W^\top W H},\qquad
+        W \leftarrow W \odot \frac{X H^\top}{W H H^\top}
+
+    Both updates preserve non-negativity (a non-negative matrix times a
+    non-negative ratio stays non-negative) and do not increase the error, so the
+    reconstruction error is monotone non-increasing.
+
+    Parameters
+    ----------
+    X:
+        A non-negative ``(N, V)`` matrix.
+    k:
+        Number of latent topics / factors (``1 <= k``).
+    iters:
+        Number of multiplicative-update iterations.
+    seed:
+        Seed for ``numpy.random.default_rng``; the random initial factors (and
+        thus the result) are reproducible.
+
+    Returns
+    -------
+    (W, H) : tuple[numpy.ndarray, numpy.ndarray]
+        Non-negative factors of shapes ``(N, k)`` and ``(k, V)``.
+
+    Raises
+    ------
+    ValueError
+        If ``X`` is not 2-D, contains negative entries, or ``k < 1``.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> X = np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]])
+    >>> W, H = nmf(X, k=2, iters=300, seed=0)
+    >>> bool((W >= 0).all() and (H >= 0).all())
+    True
+    >>> float(np.linalg.norm(X - W @ H)) < 0.1
+    True
+    """
+    X = np.asarray(X, dtype=float)
+    if X.ndim != 2:
+        raise ValueError("X must be a 2-D array of shape (n_samples, n_features).")
+    if (X < 0).any():
+        raise ValueError("nmf requires a non-negative matrix X.")
+    if k < 1:
+        raise ValueError("k must be at least 1.")
+
+    n, v = X.shape
+    rng = np.random.default_rng(seed)
+    # Scale the initial factors so W @ H starts near the magnitude of X; this
+    # makes the multiplicative updates converge in fewer iterations.
+    scale = np.sqrt(X.mean() / k) if X.mean() > 0 else 1.0
+    w = rng.random((n, k)) * scale
+    h = rng.random((k, v)) * scale
+
+    eps = 1e-10
+    for _ in range(iters):
+        # Update H, then W (using the freshly updated H), per Lee & Seung.
+        h *= (w.T @ X) / (w.T @ w @ h + eps)
+        w *= (X @ h.T) / (w @ (h @ h.T) + eps)
+
+    return w, h

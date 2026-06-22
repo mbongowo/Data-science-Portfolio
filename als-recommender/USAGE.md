@@ -5,12 +5,16 @@ the ratings, split them with discipline, fit ALS, define the ranking metrics,
 compare against a popularity baseline, deal with cold start, and read the result
 honestly. It closes with what these numbers do not establish.
 
-The pure-numpy reference functions (`als_factorize`, `predict`, `rmse`,
-`precision_at_k`, `recall_at_k`, `ndcg_at_k`, `train_val_test_split`,
+The pure-numpy reference functions (`als_factorize`, `predict`,
+`als_factorize_biased`, `predict_biased`, `als_implicit`, `rmse`,
+`precision_at_k`, `recall_at_k`, `ndcg_at_k`, `average_precision_at_k`,
+`mean_reciprocal_rank`, `catalog_coverage`, `train_val_test_split`,
 `popularity_scores`, `recommend_popular`) run with only numpy and pandas
 installed and are meant for small problems and for checking your understanding.
 The distributed training that real catalogues need lives in `recsys.spark_als`,
-which requires PySpark and a JVM.
+which requires PySpark and a JVM. A runnable tour of the explicit / biased /
+implicit models and the extra ranking metrics is in
+[`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb).
 
 ## 1. Install
 
@@ -57,10 +61,11 @@ df = pd.read_csv("data/raw/ml-25m/ratings.csv").rename(
 )
 ```
 
-Explicit feedback (a 0.5–5.0 star rating) is what ALS here is built for. If you
-only have implicit feedback (clicks, plays), the right objective is weighted ALS
-with a confidence term, which is the Spark MLlib `implicitPrefs=True` path, not
-the explicit reference in `als.py`.
+Explicit feedback (a 0.5–5.0 star rating) is what `als_factorize` is built for.
+If you only have implicit feedback (clicks, plays), the right objective is
+weighted ALS with a confidence term. The pure-numpy reference for that is
+`als_implicit` (the Hu-Koren-Volinsky formulation, covered below); at scale it
+is the Spark MLlib `implicitPrefs=True` path.
 
 ## 4. Split with discipline
 
@@ -118,6 +123,55 @@ the objective, so it converges to a local optimum. On a fully observed low-rank
 matrix the reference reconstructs `R` to a tiny RMSE — that is the known-answer
 test.
 
+### Biased matrix factorisation
+
+Real ratings are often dominated by *additive* effects — a user who rates
+everything high, an item everyone loves — rather than interaction structure. The
+biased model factors those offsets out explicitly,
+
+```
+R̂[i,j] = μ + bᵤ[i] + bᵥ[j] + U[i]·V[j]
+```
+
+so the latent factors no longer have to spend dimensions approximating the
+offsets:
+
+```python
+from recsys.als import als_factorize_biased, predict_biased
+
+mu, bu, bv, U, V = als_factorize_biased(R, mask, rank=32, reg=0.1, iters=15, seed=0)
+scores = predict_biased(mu, bu, bv, U, V)
+```
+
+The global mean `μ` is the mean of the observed ratings; each sweep then updates
+the user biases, item biases, user factors, and item factors with closed-form
+ridge solves. On data whose signal is mostly additive offsets, the biased model
+reaches a lower RMSE than the unbiased one at the same rank — that improvement is
+the known-answer test.
+
+### Implicit feedback (Hu-Koren-Volinsky)
+
+With implicit feedback you only observe *that* an interaction happened, not how
+much it was liked. The HKV objective turns counts into a binary preference `P`
+(1 if any interaction) and a per-cell confidence `C` (how strongly to trust it),
+then fits **every** cell weighted by confidence:
+
+```python
+import numpy as np
+from recsys.als import als_implicit, predict
+
+alpha = 40.0
+C = 1.0 + alpha * counts        # confidence grows with interaction count
+P = (counts > 0).astype(float)  # binary preference
+U, V = als_implicit(C, P, rank=32, reg=0.1, iters=15, seed=0)
+scores = predict(U, V)          # rank each user's row for a top-N list
+```
+
+The zeros are real low-confidence "no preference" signal, not missing data, so
+unlike the explicit model there is no mask. On a clean two-block preference
+matrix (two user groups, disjoint preferred items) the learned scores separate
+each group's block from the other — the known-answer test.
+
 ## 6. Ranking metrics
 
 Recommendation is a ranking problem, so the metrics score an *ordered* top-K
@@ -150,6 +204,28 @@ Definitions, precisely:
 
 Relevance is graded from the held-out ratings: a held-out rating at or above the
 configured threshold (default 4.0) is relevant.
+
+Three more metrics round out the picture (each with a hand-derived known-answer
+test):
+
+```python
+from recsys.metrics import (
+    average_precision_at_k, mean_reciprocal_rank, catalog_coverage,
+)
+
+average_precision_at_k(recommended, relevant, k=10)  # per-user MAP building block
+mean_reciprocal_rank(rec_lists, relevant_sets)       # 1/rank of the first hit, averaged
+catalog_coverage(rec_lists, catalog)                 # fraction of items ever recommended
+```
+
+- **Average Precision@K** — averages the running precision at each relevant hit
+  in the top-K, normalised by `min(|relevant|, k)`. The mean of this over users
+  is **MAP**, the headline order-sensitive accuracy number.
+- **MRR** — for each user, `1 / rank` of the *first* relevant item (0 if none),
+  averaged over users. The right lens when the user only looks at the top result.
+- **Catalogue coverage** — the fraction of the catalogue that is recommended to
+  *someone*. A diversity / aggregate-fairness check: accuracy can be high while
+  the system keeps surfacing the same few head items, and coverage exposes that.
 
 ## 7. Compare against the popularity baseline
 

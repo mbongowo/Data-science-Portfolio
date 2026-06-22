@@ -17,7 +17,12 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from dwh.dimensional import build_date_dim, surrogate_key
+from dwh.dimensional import (
+    SCD2_FAR_FUTURE,
+    build_date_dim,
+    scd2_snapshot,
+    surrogate_key,
+)
 
 
 def _titles() -> pd.DataFrame:
@@ -130,3 +135,172 @@ def test_build_date_dim_accepts_date_objects() -> None:
 def test_build_date_dim_end_before_start_raises() -> None:
     with pytest.raises(ValueError):
         build_date_dim("2024-01-31", "2024-01-01")
+
+
+# --------------------------------------------------------------------------- #
+# scd2_snapshot
+# --------------------------------------------------------------------------- #
+#
+# Worked SCD2 example, tracking ``title_type`` per ``title_id``.
+#
+# Run 1 (valid_from = 2024-01-01), two titles:
+#     tt1  movie
+#     tt2  short
+#   => two current rows, each [2024-01-01 .. 9999-12-31], is_current=True.
+#
+# Run 2 (valid_from = 2024-06-01):
+#     tt1  tvSeries   (CHANGED from movie)
+#     tt2  short      (unchanged)
+#     tt3  documentary (NEW)
+#   Expected snapshot, by hand (4 rows):
+#     tt1 movie       2024-01-01 .. 2024-06-01   is_current=False
+#     tt1 tvSeries    2024-06-01 .. 9999-12-31   is_current=True
+#     tt2 short       2024-01-01 .. 9999-12-31   is_current=True   (carried forward)
+#     tt3 documentary 2024-06-01 .. 9999-12-31   is_current=True
+
+
+def _run1() -> pd.DataFrame:
+    current = pd.DataFrame(
+        {"title_id": ["tt1", "tt2"], "title_type": ["movie", "short"]}
+    )
+    return scd2_snapshot(
+        current, None, key="title_id", cols=["title_type"], valid_from="2024-01-01"
+    )
+
+
+def test_scd2_first_run_all_current() -> None:
+    snap = _run1()
+    assert len(snap) == 2
+    assert snap["is_current"].all()
+    assert (snap["valid_from"] == pd.Timestamp("2024-01-01")).all()
+    assert (snap["valid_to"] == SCD2_FAR_FUTURE).all()
+    assert list(snap.columns) == [
+        "title_id",
+        "title_type",
+        "valid_from",
+        "valid_to",
+        "is_current",
+    ]
+
+
+def test_scd2_change_expires_and_appends() -> None:
+    prev = _run1()
+    current = pd.DataFrame(
+        {
+            "title_id": ["tt1", "tt2", "tt3"],
+            "title_type": ["tvSeries", "short", "documentary"],
+        }
+    )
+    snap = scd2_snapshot(
+        current, prev, key="title_id", cols=["title_type"], valid_from="2024-06-01"
+    )
+
+    # Exactly the four hand-derived rows.
+    assert len(snap) == 4
+
+    # tt1: one closed movie version + one current tvSeries version.
+    tt1 = snap[snap["title_id"] == "tt1"].sort_values("valid_from")
+    assert list(tt1["title_type"]) == ["movie", "tvSeries"]
+    assert list(tt1["is_current"]) == [False, True]
+    old, new = tt1.iloc[0], tt1.iloc[1]
+    assert old["valid_from"] == pd.Timestamp("2024-01-01")
+    assert old["valid_to"] == pd.Timestamp("2024-06-01")
+    assert new["valid_from"] == pd.Timestamp("2024-06-01")
+    assert new["valid_to"] == SCD2_FAR_FUTURE
+
+    # tt2: unchanged, carried forward as the original current row.
+    tt2 = snap[snap["title_id"] == "tt2"]
+    assert len(tt2) == 1
+    assert tt2.iloc[0]["valid_from"] == pd.Timestamp("2024-01-01")
+    assert bool(tt2.iloc[0]["is_current"]) is True
+
+    # tt3: new current row from the second run.
+    tt3 = snap[snap["title_id"] == "tt3"]
+    assert len(tt3) == 1
+    assert tt3.iloc[0]["valid_from"] == pd.Timestamp("2024-06-01")
+    assert bool(tt3.iloc[0]["is_current"]) is True
+
+    # Exactly one current row per key.
+    current_rows = snap[snap["is_current"]]
+    assert current_rows["title_id"].nunique() == len(current_rows) == 3
+
+
+def test_scd2_no_changes_is_stable() -> None:
+    """Re-running with identical source data leaves the snapshot unchanged."""
+    prev = _run1()
+    current = pd.DataFrame(
+        {"title_id": ["tt1", "tt2"], "title_type": ["movie", "short"]}
+    )
+    snap = scd2_snapshot(
+        current, prev, key="title_id", cols=["title_type"], valid_from="2024-06-01"
+    )
+    assert len(snap) == 2
+    assert snap["is_current"].all()
+    # valid_from stayed at the original run, not the new one.
+    assert (snap["valid_from"] == pd.Timestamp("2024-01-01")).all()
+
+
+def test_scd2_deleted_key_keeps_history() -> None:
+    """A key dropped from the source keeps its last version (no hard delete)."""
+    prev = _run1()
+    current = pd.DataFrame({"title_id": ["tt1"], "title_type": ["movie"]})
+    snap = scd2_snapshot(
+        current, prev, key="title_id", cols=["title_type"], valid_from="2024-06-01"
+    )
+    tt2 = snap[snap["title_id"] == "tt2"]
+    assert len(tt2) == 1
+    assert bool(tt2.iloc[0]["is_current"]) is True  # untouched
+
+
+def test_scd2_null_attribute_unchanged_is_not_a_new_version() -> None:
+    """NULL -> NULL counts as unchanged, so no spurious new version is opened."""
+    prev = scd2_snapshot(
+        pd.DataFrame({"k": ["a"], "v": [None]}),
+        None,
+        key="k",
+        cols=["v"],
+        valid_from="2024-01-01",
+    )
+    snap = scd2_snapshot(
+        pd.DataFrame({"k": ["a"], "v": [None]}),
+        prev,
+        key="k",
+        cols=["v"],
+        valid_from="2024-06-01",
+    )
+    assert len(snap) == 1
+    assert snap.iloc[0]["valid_from"] == pd.Timestamp("2024-01-01")
+
+
+def test_scd2_empty_first_run() -> None:
+    snap = scd2_snapshot(
+        pd.DataFrame({"k": [], "v": []}),
+        None,
+        key="k",
+        cols=["v"],
+        valid_from="2024-01-01",
+    )
+    assert len(snap) == 0
+    assert list(snap.columns) == ["k", "v", "valid_from", "valid_to", "is_current"]
+
+
+def test_scd2_duplicate_key_raises() -> None:
+    with pytest.raises(ValueError):
+        scd2_snapshot(
+            pd.DataFrame({"k": ["a", "a"], "v": [1, 2]}),
+            None,
+            key="k",
+            cols=["v"],
+            valid_from="2024-01-01",
+        )
+
+
+def test_scd2_empty_cols_raises() -> None:
+    with pytest.raises(ValueError):
+        scd2_snapshot(
+            pd.DataFrame({"k": ["a"], "v": [1]}),
+            None,
+            key="k",
+            cols=[],
+            valid_from="2024-01-01",
+        )

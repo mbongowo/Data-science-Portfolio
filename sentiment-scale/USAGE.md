@@ -7,9 +7,10 @@ time series, and extract topics. It closes with what these scores do not
 establish.
 
 The pure-numpy/pandas core (`normalize_text`, `tokenize`, `score_text`,
-`sentiment_timeseries`, `tfidf`) runs with only numpy and pandas installed and is
-meant for small problems and for checking your understanding. The Spark batch
-load and batched model inference that a multi-million-row corpus needs live in
+`bag_of_words`, `LogisticRegression`, `sentiment_timeseries`, `bootstrap_mean_ci`,
+`tfidf`, `nmf`) runs with only numpy and pandas installed and is meant for small
+problems and for checking your understanding. The Spark batch load and batched
+model inference that a multi-million-row corpus needs live in
 `sentiment.spark_nlp`, which requires pyspark (and a JVM) as described below.
 
 ## 1. Install
@@ -98,9 +99,30 @@ score_text("at noon")     # no lexicon hits    ==  0.0
 It is fast, transparent, and language-explicit — and it misses context. Use it
 as a coarse signal and a baseline.
 
-**Model (`scorer: model`).** The model path scores VADER's compound score in
-Spark, building the analyzer once per partition rather than once per row so it
-scales:
+**Trained model (pure numpy, in-repo).** As a *learned* alternative to the fixed
+lexicon, `classify.LogisticRegression` is a logistic-regression classifier fit by
+gradient descent on bag-of-words features — no Spark, no third-party ML. You
+train it on a labelled sample and it predicts a probability of positive:
+
+```python
+import numpy as np
+from sentiment.classify import LogisticRegression, bag_of_words
+
+X, vocab = bag_of_words(train_texts)             # learn the vocabulary
+clf = LogisticRegression(lr=0.5, n_iters=2000).fit(X, train_labels01)  # 0/1 labels
+
+Xt, _ = bag_of_words(test_texts, vocab=vocab)    # encode against the SAME vocab
+proba = clf.predict_proba(Xt)                    # P(positive) per document
+pred  = clf.predict(Xt)                          # hard 0/1 labels
+```
+
+On a linearly separable set it reaches 100% train accuracy. Always encode test
+documents against the **training** vocabulary (pass `vocab=` to `bag_of_words`),
+or the columns will not line up.
+
+**Model (`scorer: model`).** At scale, the model path scores VADER's compound
+score in Spark, building the analyzer once per partition rather than once per row
+so it scales:
 
 ```bash
 sentiment score --config config/reddit.yaml --data data/raw --out outputs
@@ -129,6 +151,46 @@ number). Treat the lexicon's accuracy as a ceiling on how much weight any level
 in the series can carry; if it only gets the sign right ~3/4 of the time, quote
 *direction*, not magnitude. Validate the model path the same way and prefer it
 where the two disagree.
+
+**Validating lexicon vs model.** Run *both* scorers on the same labelled sample
+and compare them against the labels and against each other. The lexicon gives a
+sign per document; the trained `LogisticRegression` gives `P(positive)`. Where
+they agree, you can trust the level more; where they disagree, that disagreement
+is itself the signal to inspect — it concentrates on the ambiguous, sarcastic, or
+context-dependent text the lexicon is blind to. A compact recipe:
+
+```python
+import numpy as np
+from sentiment.lexicon import score_text
+from sentiment.classify import LogisticRegression, bag_of_words
+
+X, vocab = bag_of_words(train_texts)
+clf = LogisticRegression(lr=0.5, n_iters=2000).fit(X, train_labels01)
+
+Xs, _   = bag_of_words(sample_texts, vocab=vocab)
+lex_sign = np.sign([score_text(t) for t in sample_texts])
+mdl_sign = np.where(clf.predict_proba(Xs) >= 0.5, 1, -1)
+
+lex_acc = (lex_sign == sample_signed_labels).mean()
+mdl_acc = (mdl_sign == sample_signed_labels).mean()
+agreement = (lex_sign == mdl_sign).mean()
+```
+
+Quote both accuracies and the agreement rate; prefer the validated model where
+the two split. (The walkthrough notebook,
+`notebooks/01_walkthrough.ipynb`, runs exactly this comparison.)
+
+**Put an error bar on the mean.** A weekly or overall mean is a point estimate;
+attach a bootstrap confidence interval before quoting a level:
+
+```python
+from sentiment.uncertainty import bootstrap_mean_ci
+
+lo, hi = bootstrap_mean_ci(scores, n_boot=2000, seed=0, alpha=0.05)  # 95% CI
+```
+
+If the interval straddles zero, the *sign* of that period's mean is not
+established — report it as such.
 
 ## 7. Aggregate to a time series
 
@@ -167,6 +229,25 @@ Cluster the rows (e.g. k-means from scikit-learn, `topics.n_clusters` clusters)
 and read the top `topics.top_terms` terms per cluster by mean TF-IDF weight.
 Overlay the cluster sizes on the weekly series: a sentiment dip that lines up
 with a new topic cluster is a topic-mix effect, not necessarily a mood change.
+
+For a soft, pure-numpy alternative to hard clustering, `nmf` factorises the
+non-negative matrix into `k` topics with **non-negative** loadings (unlike SVD,
+which produces hard-to-read negative weights):
+
+```python
+from sentiment.topics import nmf
+
+W, H = nmf(matrix, k=5, iters=500, seed=0)   # W: (N x k) doc-topic, H: (k x V) topic-term
+for topic in H:
+    top_terms = [vocab[j] for j in topic.argsort()[::-1][:10]]
+```
+
+Each row of `H` is a topic over the vocabulary (read its top terms); each row of
+`W` is a document's weight on each topic. The factorisation uses Lee–Seung
+multiplicative updates, so factors stay non-negative and the reconstruction error
+is monotone non-increasing. With very imbalanced topic magnitudes the
+multiplicative updates can settle in a poor local minimum — re-run with a
+different `seed` or more `iters` if a topic looks empty.
 
 ## 9. How to interpret responsibly
 

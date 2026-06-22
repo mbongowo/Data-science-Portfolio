@@ -42,6 +42,7 @@ dev = { features = ["dev"], solve-group = "default" }
 
 [tasks]
 test = "pytest"
+demo = "clickstream demo"
 lint = "ruff check . && mypy src"
 format = "ruff format ."
 produce = "python -m clickstream.pipeline"
