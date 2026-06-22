@@ -1,0 +1,43 @@
+# Area-of-interest and analysis configuration for the Douala SAM pipeline.
+# Everything that changes "what" is segmented and how masks are quantified lives
+# here; the code reads it. The dependency-free `demo` ignores this file.
+
+# --------------------------------------------------------------------------- #
+# Study area
+# --------------------------------------------------------------------------- #
+aoi:
+  name: "douala_cameroon"
+  description: >
+    A neighbourhood-scale area of interest over Douala, Cameroon, for automatic
+    building-footprint and field extraction from a satellite basemap. Keep the
+    bbox small (a few square km) so the SAM tile pull and mask generation stay
+    tractable on a single GPU.
+  # EPSG:4326 (lon/lat) bounding box. Trim to the neighbourhood you want before
+  # running `segment`; the full box below is intentionally a few km across.
+  bbox:
+    min_lon: 9.65
+    min_lat: 4.00
+    max_lon: 9.80
+    max_lat: 4.10
+  # Projected CRS for area-correct measurement. Douala sits in UTM zone 32N.
+  crs: "EPSG:32632"
+
+# --------------------------------------------------------------------------- #
+# Basemap imagery (input to SAM)
+# --------------------------------------------------------------------------- #
+basemap:
+  source: "Satellite"   # samgeo tms_to_geotiff source (e.g. Satellite)
+  zoom: 19              # 18-20 is typical for building-scale segmentation
+
+# --------------------------------------------------------------------------- #
+# Mask quantification
+# --------------------------------------------------------------------------- #
+analysis:
+  pixel_size_m: 0.5     # ground sample distance of the basemap tiles (m/px)
+  connectivity: 4       # 4 or 8 for connected-component labelling
+  # Building footprint area band in square metres. Objects below the min are
+  # treated as noise; objects above the max are treated as fields / merged blobs.
+  building_min_area_m2: 8.0
+  building_max_area_m2: 400.0
+  # Objects larger than this (m2) are counted toward field area, not buildings.
+  field_min_area_m2: 1000.0

@@ -1,0 +1,28 @@
+# The tested core (src/samgeo_post/analytics.py + demo.py) and the whole test
+# suite need ONLY the three packages in the first group below. The "full
+# pipeline" group is for the heavy SAM segmentation + vectorisation wrappers and
+# the notebook; prefer the conda env (environment.yml) for the geospatial stack,
+# since GDAL/GEOS/PROJ + torch wheels via pip can be fragile.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+# --- Core + tests (numpy / pandas / pyyaml only) ---
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# --- Full pipeline (heavy; not needed for the core or tests) ---
+# Segment Anything for geospatial imagery, basemap tiling, and the GIS stack.
+segment-geospatial>=0.10
+leafmap>=0.30
+rasterio>=1.3
+geopandas>=0.14
+shapely>=2.0
+torch>=2.0
+jupyter>=1.0
+
+# --- Dev / CI ---
+pytest>=8.0
+ruff>=0.6

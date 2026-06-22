@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "samgeo-post"
+version = "0.1.0"
+description = "Geospatial post-processing and quantification of Segment Anything masks: count buildings, measure footprints, total field area."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+keywords = ["segment-anything", "samgeo", "remote-sensing", "building-footprints", "geospatial", "douala"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "segment-geospatial>=0.10",
+    "leafmap>=0.30",
+    "rasterio>=1.3",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "torch>=2.0",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+samgeo-post = "samgeo_post.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial/01-segment-geospatial"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/samgeo_post"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W", "N", "C4", "SIM"]
+ignore = ["N803", "N806"]  # allow X, W etc. (math conventions)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -19,6 +19,7 @@ jobs:
           - spatial/geoai-segmentation
           - spatial/disturbance-detection
           - spatial/eo-explorer-app
+          - spatial/01-segment-geospatial
           - non-spatial/clickstream-pipeline
           - non-spatial/log-anomaly
           - non-spatial/als-recommender
