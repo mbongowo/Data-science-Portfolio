@@ -23,8 +23,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 # --------------------------------------------------------------------------- #
 # Constants
@@ -39,15 +40,62 @@ SENTINEL2_COLLECTION = "sentinel-2-l2a"
 #: Default maximum AOI area we are willing to load (square kilometres).
 DEFAULT_MAX_AREA_KM2 = 2_500.0
 
-#: Mapping from index name -> Sentinel-2 asset (band) keys required to compute it.
-#: NDVI  = (NIR - Red)   / (NIR + Red)
-#: NDWI  = (Green - NIR) / (Green + NIR)    (McFeeters water index)
-#: NDMI  = (NIR - SWIR1) / (NIR + SWIR1)
+#: Mapping from index name -> Sentinel-2 L2A asset (band) keys required to
+#: compute it. Asset names follow Earth Search common names: blue, green, red,
+#: rededge1 (B05, the red-edge "RE"), nir, swir16 (SWIR1, B11), swir22 (SWIR2,
+#: B12). Order within a tuple does not matter here -- it only drives which assets
+#: are fetched; the positional order for the index function lives in
+#: ``render.INDEX_REGISTRY`` band tuples.
 INDEX_BANDS: dict[str, tuple[str, ...]] = {
+    # Vegetation
     "NDVI": ("red", "nir"),
+    "EVI": ("nir", "red", "blue"),
+    "EVI2": ("nir", "red"),
+    "SAVI": ("nir", "red"),
+    "MSAVI": ("nir", "red"),
+    "GNDVI": ("nir", "green"),
+    "ARVI": ("nir", "red", "blue"),
+    "NDRE": ("nir", "rededge1"),
+    "VARI": ("green", "red", "blue"),
+    "RVI": ("nir", "red"),
+    "DVI": ("nir", "red"),
+    "CIGREEN": ("nir", "green"),
+    "CIREDEDGE": ("nir", "rededge1"),
+    "MCARI": ("rededge1", "red", "green"),
+    "TCARI": ("rededge1", "red", "green"),
+    "LAI": ("nir", "red", "blue"),
+    # Water & moisture
     "NDWI": ("green", "nir"),
+    "MNDWI": ("green", "swir16"),
     "NDMI": ("nir", "swir16"),
+    "AWEI": ("green", "nir", "swir16", "swir22"),
+    "NDII": ("nir", "swir16"),
+    # Soil & geology
+    "BSI": ("swir16", "red", "nir", "blue"),
+    "SI": ("green", "red"),
+    "IRONOXIDE": ("red", "blue"),
+    "CLAYMINERALS": ("swir16", "swir22"),
+    "FERROUSMINERALS": ("swir16", "nir"),
+    # Built-up / urban
+    "NDBI": ("swir16", "nir"),
+    "UI": ("swir22", "nir"),
+    "IBI": ("swir16", "nir", "red", "green"),
+    # Snow / ice
+    "NDSI": ("green", "swir16"),
+    "NDGI": ("green", "red"),
+    # Fire / burn
+    "NBR": ("nir", "swir22"),
+    "NBR2": ("swir16", "swir22"),
+    "BAI": ("red", "nir"),
 }
+
+#: Sentinel-2 L2A surface-reflectance scaling. Earth Search serves DN scaled by
+#: 1e-4; processing baseline 04.00 (2022-01-25 onward) adds a -0.1 radiometric
+#: offset, so reflectance = DN * 1e-4 - 0.1, clamped at 0. Indices with additive
+#: constants (EVI, SAVI, MSAVI, AWEI, BAI) require reflectance in [0, 1], so this
+#: scaling is applied in :func:`load_scene` before any index is computed.
+S2_REFLECTANCE_SCALE = 1.0e-4
+S2_REFLECTANCE_OFFSET = -0.1
 
 #: How many days either side of the chosen date to search for a scene.
 DEFAULT_DATE_WINDOW_DAYS = 10
@@ -130,9 +178,7 @@ def aoi_bbox_from_geojson(geojson: dict[str, Any]) -> tuple[float, float, float,
     geometries: list[dict[str, Any]] = []
     gtype = geojson.get("type")
     if gtype == "FeatureCollection":
-        geometries = [
-            feat.get("geometry", {}) for feat in geojson.get("features", [])
-        ]
+        geometries = [feat.get("geometry", {}) for feat in geojson.get("features", [])]
     elif gtype == "Feature":
         geometries = [geojson.get("geometry", {})]
     elif gtype is not None:
@@ -525,9 +571,15 @@ def load_scene(item, bbox: Sequence[float], index: str):
     """Load the bands needed for ``index`` from ``item``, clipped to ``bbox``.
 
     Loads the index bands plus the Scene Classification Layer, masks cloud /
-    shadow / water / no-data pixels to NaN (see :data:`SCL_INVALID_CLASSES`), and
-    drops the SCL band. Returns an :class:`xarray.Dataset` with one variable per
-    required band, reprojected and clipped to the AOI. Network access is required.
+    shadow / water / no-data pixels to NaN (see :data:`SCL_INVALID_CLASSES`),
+    scales the raw DN to surface reflectance in [0, 1]
+    (``DN * 1e-4 - 0.1`` clamped at 0; see :data:`S2_REFLECTANCE_SCALE` /
+    :data:`S2_REFLECTANCE_OFFSET`), and drops the SCL band. Returns an
+    :class:`xarray.Dataset` with one variable per required band, reprojected and
+    clipped to the AOI. The reflectance scaling matters for indices with additive
+    constants (EVI, SAVI, MSAVI, AWEI, BAI); the normalised-difference and ratio
+    indices are scale-invariant but are scaled too for consistency. Network
+    access is required.
     """
     import odc.stac  # noqa: F401  (registers the .stac accessor / load fn)
     from odc.stac import load as odc_load
@@ -547,11 +599,20 @@ def load_scene(item, bbox: Sequence[float], index: str):
     if "time" in dataset.dims:
         dataset = dataset.isel(time=0)
 
-    # Mask invalid pixels using the Scene Classification Layer, then drop it.
+    # Capture the SCL validity mask before scaling, then drop SCL.
+    valid = None
     if "scl" in dataset:
         valid = ~dataset["scl"].isin(list(SCL_INVALID_CLASSES))
-        for band in bands:
-            dataset[band] = dataset[band].where(valid)
+
+    # Scale raw DN -> surface reflectance in [0, 1], masking invalid pixels.
+    for band in bands:
+        scaled = dataset[band] * S2_REFLECTANCE_SCALE + S2_REFLECTANCE_OFFSET
+        scaled = scaled.clip(min=0.0)
+        if valid is not None:
+            scaled = scaled.where(valid)
+        dataset[band] = scaled
+
+    if "scl" in dataset:
         dataset = dataset.drop_vars("scl")
     return dataset
 

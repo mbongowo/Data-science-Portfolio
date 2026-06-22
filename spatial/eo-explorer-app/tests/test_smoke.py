@@ -18,7 +18,6 @@ import pytest
 # Importing the modules must not require streamlit / folium / pystac etc.
 from app import render, stac
 
-
 # --------------------------------------------------------------------------- #
 # aoi_bbox_from_geojson
 # --------------------------------------------------------------------------- #
@@ -120,9 +119,7 @@ def test_cache_key_is_deterministic():
 
 def test_cache_key_index_is_case_insensitive():
     bbox = (10.0, 50.0, 10.5, 50.4)
-    assert stac.cache_key(bbox, "2024-06-15", "ndvi") == stac.cache_key(
-        bbox, "2024-06-15", "NDVI"
-    )
+    assert stac.cache_key(bbox, "2024-06-15", "ndvi") == stac.cache_key(bbox, "2024-06-15", "NDVI")
 
 
 def test_cache_key_changes_with_inputs():
@@ -156,11 +153,34 @@ def test_date_window_format():
 
 def test_index_registry_complete():
     names = render.list_indices()
-    assert names == ["NDVI", "NDWI", "NDMI"]
+    # The original three remain available...
+    for required in ("NDVI", "NDWI", "NDMI"):
+        assert required in names
+    # ...and the catalogue has grown well beyond them.
+    assert len(names) > 20
+    valid_categories = {"Vegetation", "Water", "Soil", "Built-up", "Snow", "Fire"}
     for name in names:
         spec = render.INDEX_REGISTRY[name]
         assert spec.vmax > spec.vmin
         assert callable(spec.func)
+        assert isinstance(spec.bands, tuple) and len(spec.bands) >= 2
+        assert spec.category in valid_categories
+
+
+def test_index_registry_bands_match_stac():
+    """Every registry index must have a band entry in stac.INDEX_BANDS covering
+    the same assets it computes from."""
+    for name, spec in render.INDEX_REGISTRY.items():
+        assert name in stac.INDEX_BANDS
+        assert set(spec.bands) == set(stac.INDEX_BANDS[name])
+
+
+def test_list_indices_by_category():
+    cats = render.list_indices_by_category()
+    assert set(cats) == {"Vegetation", "Water", "Soil", "Built-up", "Snow", "Fire"}
+    # Each category lists at least one index, and the union is the full set.
+    flat = [n for names in cats.values() for n in names]
+    assert sorted(flat) == sorted(render.list_indices())
 
 
 def test_normalize_clips_and_scales():
@@ -201,6 +221,31 @@ def test_fallback_index_math_matches_formula():
     assert np.allclose(got, expected)
 
 
+def test_fallback_ndwi_ndmi_match_formula():
+    """The two other smoke-tested fallbacks match their normalised-difference."""
+    np = pytest.importorskip("numpy")
+    green = np.array([0.3, 0.4])
+    nir = np.array([0.1, 0.6])
+    swir = np.array([0.2, 0.5])
+    assert np.allclose(render._ndwi(green, nir), (green - nir) / (green + nir))
+    assert np.allclose(render._ndmi(nir, swir), (nir - swir) / (nir + swir))
+
+
+def test_registry_funcs_compute_known_values():
+    """Spot-check the smoke-tested fallback registry funcs on small arrays.
+
+    These three (NDVI/NDWI/NDMI) carry local fallbacks so they compute even
+    without eo-monitor; the wider catalogue resolves from eo-monitor in the
+    production path and is covered by eo-monitor's own tests."""
+    np = pytest.importorskip("numpy")
+    # NDVI: (nir-red)/(nir+red) = (0.5-0.1)/(0.5+0.1) = 2/3.
+    f_ndvi = render.INDEX_REGISTRY["NDVI"].func
+    assert np.allclose(f_ndvi(np.array([0.5]), np.array([0.1])), np.array([2.0 / 3.0]))
+    # NDMI: (nir-swir)/(nir+swir) = (0.6-0.2)/(0.6+0.2) = 0.5.
+    f_ndmi = render.INDEX_REGISTRY["NDMI"].func
+    assert np.allclose(f_ndmi(np.array([0.6]), np.array([0.2])), np.array([0.5]))
+
+
 # --------------------------------------------------------------------------- #
 # aoi_bbox_from_geojson: MultiPolygon + GeometryCollection
 # --------------------------------------------------------------------------- #
@@ -225,9 +270,7 @@ def test_aoi_bbox_from_geometry_collection():
             {"type": "Point", "coordinates": [3.0, 4.0]},
             {
                 "type": "Polygon",
-                "coordinates": [
-                    [[-1.0, -1.0], [2.0, -1.0], [2.0, 2.0], [-1.0, 2.0], [-1.0, -1.0]]
-                ],
+                "coordinates": [[[-1.0, -1.0], [2.0, -1.0], [2.0, 2.0], [-1.0, 2.0], [-1.0, -1.0]]],
             },
         ],
     }
@@ -244,9 +287,7 @@ def test_aoi_bbox_feature_collection_unions_features():
                 "properties": {},
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [
-                        [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]
-                    ],
+                    "coordinates": [[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]],
                 },
             },
             {

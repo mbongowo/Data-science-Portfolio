@@ -112,23 +112,46 @@ config (YAML)
 
 ### Indices
 
-| Index | Formula | Bands (S2 L2A) | Sensitive to |
-|-------|---------|----------------|--------------|
-| NDVI  | (NIR − Red) / (NIR + Red)         | B08, B04 | green biomass / vigour |
-| NDWI  | (Green − NIR) / (Green + NIR)     | B03, B08 | open water / wetness |
-| NDMI  | (NIR − SWIR) / (NIR + SWIR)       | B08, B11 | canopy moisture |
-| SAVI  | (1+L)(NIR − Red)/(NIR + Red + L)  | B08, B04 | vegetation, soil-corrected |
-| EVI2  | 2.5(NIR − Red)/(NIR + 2.4·Red + 1)| B08, B04 | dense canopy (less saturation) |
-| NBR   | (NIR − SWIR) / (NIR + SWIR)       | B08, B12 | burn severity |
+`indices.py` ships a full single-scene spectral-index catalogue (34 indices),
+all pure numpy/xarray and dispatchable by name via `compute_index` /
+`required_bands` (`list_indices()` returns the full list). Grouped by category:
+
+| Category | Indices |
+|----------|---------|
+| Vegetation | NDVI, EVI, EVI2, SAVI, MSAVI, GNDVI, ARVI, NDRE, VARI, RVI, DVI, CIgreen, CIrededge, MCARI, TCARI, LAI |
+| Water & moisture | NDWI, MNDWI, NDMI, AWEI, NDII |
+| Soil & geology | BSI, SI (salinity), IronOxide, ClayMinerals, FerrousMinerals |
+| Built-up / urban | NDBI, UI, IBI |
+| Snow / ice | NDSI, NDGI |
+| Fire / burn | NBR, NBR2, BAI |
+
+Sentinel-2 L2A assets used (Earth Search common names): `blue`, `green`, `red`,
+`rededge1` (B05, red-edge / "RE"), `nir`, `swir16` (SWIR1, B11), `swir22`
+(SWIR2, B12).
+
+**Reflectance scaling.** Normalised-difference and pure-ratio indices are
+scale-invariant. Indices with additive constants — **EVI, SAVI, MSAVI, AWEI,
+BAI** (and LAI via EVI) — assume surface reflectance in `[0, 1]`; feed them
+scaled reflectance, not raw DN.
+
+**Caveats / equivalences.** `NDII` is the same formula as `NDMI` (kept under both
+names). `NDSI` shares the formula of `MNDWI` (snow vs water is a threshold/context
+call). `SI` is the `sqrt(Green*Red)` salinity form (several variants exist).
+`NDGI` is the green/red glacier-index variant. `LAI = 3.618·EVI − 0.118` is an
+**approximate empirical** relation, not a physical retrieval.
+
+**Excluded by design** (not dispatchable): **EBBI** needs a thermal band, which
+Sentinel-2 does not carry; **dNBR** needs two dates (pre/post fire) and so belongs
+to the temporal/anomaly workflow (`anomaly.py`), not the single-scene index path.
 
 ### Capabilities
 
 The pure-numpy core (`indices.py`, `anomaly.py`) is what the tests and the demo
 exercise; it runs with only numpy installed.
 
-- **Spectral indices:** NDVI, NDWI, NDMI, SAVI, EVI2, NBR, plus the public
+- **Spectral indices:** the 34-index catalogue above, plus the public
   `normalized_difference(a, b)` building block. Each is dispatchable by name via
-  `compute_index` / `required_bands`.
+  `compute_index` / `required_bands`; `list_indices()` enumerates them.
 - **Anomaly detection:** standard z-score (`anomaly_cube`, `zscore_anomaly`) and
   an outlier-resistant `robust_zscore` (median + MAD scaled by 1.4826).
 - **Anomaly summaries:** `anomaly_fraction(z, threshold)` and

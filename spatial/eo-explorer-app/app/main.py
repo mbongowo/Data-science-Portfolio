@@ -6,8 +6,10 @@ Run locally with::
 
 Workflow
 --------
-1. The user draws an area of interest on the map (rectangle or polygon tool).
-2. The sidebar offers a date picker and an index selector (NDVI / NDWI / NDMI).
+1. The user draws an area of interest on the map (rectangle or polygon tool),
+   optionally jumping there first with the on-map place-name search.
+2. The sidebar offers a date picker and a category-grouped index selector (34
+   indices across Vegetation / Water / Soil / Built-up / Snow / Fire).
 3. On "Load", the app finds the least-cloudy Sentinel-2 L2A scene near the date,
    loads the needed bands, computes the index with the reused ``eo-monitor``
    functions, and draws it on the map as a coloured overlay with a legend.
@@ -71,9 +73,16 @@ def _sidebar() -> tuple[str, _dt.date, float]:
         "live Sentinel-2 imagery from the Earth Search STAC catalogue."
     )
 
+    by_cat = render.list_indices_by_category()
+    category = st.sidebar.selectbox(
+        "Index category",
+        options=list(by_cat),
+        help="Indices are grouped by what they measure.",
+    )
     index = st.sidebar.selectbox(
         "Spectral index",
-        options=render.list_indices(),
+        options=by_cat[category],
+        format_func=lambda key: render.INDEX_REGISTRY[key].name,
         help="Index functions are reused from the eo-monitor package.",
     )
     st.sidebar.caption(render.INDEX_REGISTRY[index].description)
@@ -111,17 +120,38 @@ def _sidebar() -> tuple[str, _dt.date, float]:
 
 
 def _build_map(overlay: dict | None):
-    """Build the folium map: satellite basemap, draw tools, and any saved overlay."""
+    """Build the folium map.
+
+    Layers: an Esri "World Imagery" satellite basemap (default) and a labelled
+    OpenStreetMap basemap for orientation, a place-name search box (Geocoder, via
+    OSM Nominatim, no API key), draw tools, a layer switcher, and any saved
+    overlay.
+    """
     import folium
-    from folium.plugins import Draw
+    from folium.plugins import Draw, Geocoder
 
     fmap = folium.Map(location=[10.0, 15.0], zoom_start=3, control_scale=True, tiles=None)
+
+    # Imagery first so it is the default base layer; OSM gives place/road labels
+    # so the user can tell where they are. Both are switchable via LayerControl.
     folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         attr="Tiles (c) Esri",
         name="Esri World Imagery",
-        control=False,
+        control=True,
+        show=True,
     ).add_to(fmap)
+    folium.TileLayer(
+        tiles="OpenStreetMap",
+        name="OpenStreetMap (labels)",
+        control=True,
+        show=False,
+    ).add_to(fmap)
+
+    # Place-name search: type e.g. "Nairobi" and the map flies there. Uses
+    # Leaflet-Control-Geocoder against OSM Nominatim, so no API key is needed.
+    Geocoder(collapsed=False, add_marker=True, placeholder="Search for a place...").add_to(fmap)
+
     Draw(
         export=False,
         draw_options={
@@ -142,6 +172,9 @@ def _build_map(overlay: dict | None):
         ).add_to(fmap)
         render.add_overlay_legend(fmap, overlay)
         fmap.fit_bounds(overlay["bounds"])
+
+    # Added last so it sees every layer (both basemaps + any overlay).
+    folium.LayerControl(collapsed=True).add_to(fmap)
 
     return fmap
 
@@ -265,9 +298,7 @@ def _show_result() -> None:
     if scene_id:
         cloud = meta.get("cloud_cover")
         cloud_txt = f"{cloud:.1f}%" if isinstance(cloud, (int, float)) else "n/a"
-        st.success(
-            f"Scene `{scene_id}` from {meta.get('datetime')} (cloud cover {cloud_txt})."
-        )
+        st.success(f"Scene `{scene_id}` from {meta.get('datetime')} (cloud cover {cloud_txt}).")
 
     stats = overlay.get("stats") or {}
     if stats:

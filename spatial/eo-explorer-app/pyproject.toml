@@ -92,3 +92,7 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B018"]
 "app/render.py" = ["B009", "B010"]
+# main.py inserts the project root on sys.path before importing the app
+# package (Streamlit Community Cloud runs app/main.py directly), so the imports
+# legitimately follow that bootstrap block.
+"app/main.py" = ["E402"]

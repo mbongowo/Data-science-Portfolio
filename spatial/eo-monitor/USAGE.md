@@ -124,9 +124,21 @@ per-pixel mean and standard deviation are stable.
 
 ### `indices`
 
-A list of one or more of `NDVI`, `NDWI`, `NDMI`, `SAVI`, `EVI2`, `NBR`
-(case-insensitive; normalised to upper case). Each index produces its own anomaly
-and composite output.
+A list of one or more index names (case-insensitive; normalised to upper case).
+Each index produces its own anomaly and composite output. The full catalogue,
+grouped by category:
+
+| Category | Indices |
+|----------|---------|
+| Vegetation | NDVI, EVI, EVI2, SAVI, MSAVI, GNDVI, ARVI, NDRE, VARI, RVI, DVI, CIgreen, CIrededge, MCARI, TCARI, LAI |
+| Water & moisture | NDWI, MNDWI, NDMI, AWEI, NDII |
+| Soil & geology | BSI, SI, IronOxide, ClayMinerals, FerrousMinerals |
+| Built-up / urban | NDBI, UI, IBI |
+| Snow / ice | NDSI, NDGI |
+| Fire / burn | NBR, NBR2, BAI |
+
+The classic three (`NDVI`, `NDWI`, `NDMI`) remain the defaults in the shipped
+config. Selected formulae:
 
 | Index | Formula | Bands (S2 L2A) | Sensitive to |
 |-------|---------|----------------|--------------|
@@ -134,8 +146,25 @@ and composite output.
 | NDWI  | (Green − NIR) / (Green + NIR)      | B03, B08 | open water / wetness |
 | NDMI  | (NIR − SWIR) / (NIR + SWIR)        | B08, B11 | canopy moisture |
 | SAVI  | (1+L)(NIR − Red)/(NIR + Red + L)   | B08, B04 | vegetation, soil-corrected (L=0.5) |
-| EVI2  | 2.5(NIR − Red)/(NIR + 2.4·Red + 1) | B08, B04 | dense canopy (less saturation) |
-| NBR   | (NIR − SWIR) / (NIR + SWIR)        | B08, B12 | burn severity |
+| EVI   | 2.5(NIR−Red)/(NIR+6·Red−7.5·Blue+1)| B08, B04, B02 | dense canopy, aerosol-corrected |
+| MNDWI | (Green − SWIR1) / (Green + SWIR1)  | B03, B11 | open water (built-up suppressed) |
+| BSI   | ((SWIR1+Red)−(NIR+Blue))/(sum)     | B11, B04, B08, B02 | bare soil |
+| NDBI  | (SWIR1 − NIR) / (SWIR1 + NIR)      | B11, B08 | built-up / impervious |
+| NDSI  | (Green − SWIR1) / (Green + SWIR1)  | B03, B11 | snow / ice |
+| NBR   | (NIR − SWIR2) / (NIR + SWIR2)      | B08, B12 | burn severity |
+
+**Reflectance note.** Indices with additive constants (EVI, SAVI, MSAVI, AWEI,
+BAI, LAI) need surface reflectance in `[0, 1]`; the pipeline's reflectance cube
+already supplies that. Normalised-difference and ratio indices are scale-invariant.
+
+**Caveats.** `NDII` is identical to `NDMI`; `NDSI` shares the `MNDWI` formula;
+`SI` is the `sqrt(Green*Red)` salinity form; `NDGI` is the green/red glacier
+variant; `LAI` is an approximate empirical relation from EVI.
+
+**Not supported.** `EBBI` (needs a thermal band Sentinel-2 lacks). `dNBR` is not
+a single-scene index — it is the differenced NBR between two dates, which this
+pipeline expresses through its **anomaly** workflow (target window vs baseline)
+rather than as an entry in this `indices` list.
 
 ### `stac`
 

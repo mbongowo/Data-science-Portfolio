@@ -98,25 +98,38 @@ you install the package.
 
 The screen has a sidebar of controls and a map.
 
-1. **Draw the area of interest.** Use the draw control on the map to place a
+1. **Find your area.** The map has a place-name search box (top of the map): type
+   something like `Nairobi` or `Lake Tahoe` and the map flies there. It uses
+   OpenStreetMap Nominatim, so it needs no API key. The layer control (top right)
+   switches between the **Esri World Imagery** satellite basemap (the default)
+   and a **labelled OpenStreetMap** basemap that shows place and road names for
+   orientation.
+
+2. **Draw the area of interest.** Use the draw control on the map to place a
    rectangle or polygon. The bounding box of whatever you draw becomes the AOI.
    A FeatureCollection with several shapes is reduced to the box that contains
    all of them. Keep the area inside the size limit (see below) so the imagery
    loads quickly.
 
-2. **Pick the date.** The date picker defaults to two weeks ago. The earliest
+3. **Pick the date.** The date picker defaults to two weeks ago. The earliest
    selectable date is 2015-06-23, the start of the Sentinel-2 archive, and the
    latest is today. The app does not require imagery on the exact day: it
    searches a window of plus or minus ten days and keeps the least-cloudy scene
    it finds.
 
-3. **Pick the index.** Three are offered, each reused from `eo-monitor`:
+4. **Pick the index.** First choose a **category** (Vegetation, Water, Soil,
+   Built-up, Snow, Fire), then an index within it. All 34 indices are reused from
+   `eo-monitor`; the sidebar shows a one-line description of the selected one.
+   For example NDVI (vegetation greenness) draws on a red-to-green ramp, NDWI
+   (open water) on a blue ramp, and NDMI (vegetation moisture) on a brown-to-green
+   ramp. A few caveats worth knowing: `NDII` is the same formula as `NDMI`; `SI`
+   is the `sqrt(Green*Red)` salinity form; `NDGI` is the green/red glacier
+   variant; `LAI` is an approximate empirical relation from EVI. `EBBI` (needs a
+   thermal band) and `dNBR` (needs two dates) are deliberately not offered.
 
-   - NDVI, vegetation greenness, drawn on a red-to-green ramp.
-   - NDWI, open water, drawn on a blue ramp.
-   - NDMI, vegetation moisture, drawn on a brown-to-green ramp.
-
-   The sidebar shows a one-line description of the selected index.
+   Behind the scenes, the loader scales the raw Sentinel-2 DN to surface
+   reflectance in `[0, 1]` before computing the index, which matters for the
+   indices that carry additive constants (EVI, SAVI, MSAVI, AWEI, BAI).
 
 4. **Set the maximum area.** A slider caps the AOI size between 100 and 5000
    square kilometres. The default is 2500. An AOI above the cap is rejected

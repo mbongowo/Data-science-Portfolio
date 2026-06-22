@@ -34,14 +34,44 @@ copy-pasted.
 
 ## What it does
 
-1. **Draw an AOI** with the rectangle or polygon tool on the map. The drawn
+1. **Find your area.** Type a place name into the on-map search box (e.g.
+   "Nairobi") and the map flies there — no API key, it uses OpenStreetMap
+   Nominatim. Switch between the **Esri satellite imagery** (default) and a
+   **labelled OpenStreetMap** basemap with the layer control so you can tell
+   where you are.
+2. **Draw an AOI** with the rectangle or polygon tool on the map. The drawn
    shape is read back into the app with `st_folium`.
-2. **Pick a date.** The app searches ±10 days for the least-cloudy scene.
-3. **Pick an index:** NDVI (vegetation), NDWI (water), or NDMI (moisture).
-4. **Render.** The app queries [Earth Search](https://earth-search.aws.element84.com/v1)
+3. **Pick a date.** The app searches ±10 days for the least-cloudy scene.
+4. **Pick an index** from a category-grouped picker — 34 indices spanning
+   Vegetation, Water, Soil, Built-up, Snow, and Fire (see the catalogue below).
+5. **Render.** The app queries [Earth Search](https://earth-search.aws.element84.com/v1)
    (Sentinel-2 L2A, no auth), loads only the bands it needs via `odc-stac`,
-   computes the index with `eo-monitor`, and draws it as a coloured folium
-   `ImageOverlay` with a legend and min/mean/max statistics.
+   scales DN to surface reflectance in `[0, 1]`, computes the index with
+   `eo-monitor`, and draws it as a coloured folium `ImageOverlay` with a legend
+   and min/mean/max statistics.
+
+### Supported indices
+
+All index maths is reused from `eo-monitor`. The picker groups them by category:
+
+| Category | Indices |
+|----------|---------|
+| Vegetation | NDVI, EVI, EVI2, SAVI, MSAVI, GNDVI, ARVI, NDRE, VARI, RVI, DVI, CIgreen, CIrededge, MCARI, TCARI, LAI |
+| Water | NDWI, MNDWI, NDMI, AWEI, NDII |
+| Soil | BSI, SI, IronOxide, ClayMinerals, FerrousMinerals |
+| Built-up | NDBI, UI, IBI |
+| Snow | NDSI, NDGI |
+| Fire | NBR, NBR2, BAI |
+
+**Caveats.** `NDII` is the same formula as `NDMI`; `SI` is the
+`sqrt(Green*Red)` salinity form (one of several); `NDGI` is the green/red glacier
+variant; `LAI` is an approximate empirical relation from EVI. Indices with
+additive constants (EVI, SAVI, MSAVI, AWEI, BAI) need reflectance in `[0, 1]`,
+which `stac.load_scene` supplies by scaling the loaded bands.
+
+**Not offered.** `EBBI` needs a thermal band Sentinel-2 lacks; `dNBR` needs two
+dates and belongs to `eo-monitor`'s temporal/anomaly workflow, not the
+single-scene picker.
 
 Edge cases surface a single specific message rather than failing silently:
 oversized AOIs are rejected by `validate_aoi`, empty search results and

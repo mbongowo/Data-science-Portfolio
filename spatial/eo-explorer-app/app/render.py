@@ -10,8 +10,9 @@ helpers; the production path always prefers ``eo_monitor``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 # --------------------------------------------------------------------------- #
 # eo-monitor reuse
@@ -23,18 +24,23 @@ EO_MONITOR_AVAILABLE = False
 _EO_MONITOR_IMPORT_ERROR: Exception | None = None
 
 try:  # pragma: no cover - exercised only when eo-monitor is installed
-    from eo_monitor.indices import ndmi as _ndmi
-    from eo_monitor.indices import ndvi as _ndvi
-    from eo_monitor.indices import ndwi as _ndwi
+    from eo_monitor import indices as _eo_idx
+
+    _ndvi = _eo_idx.ndvi
+    _ndwi = _eo_idx.ndwi
+    _ndmi = _eo_idx.ndmi
 
     EO_MONITOR_AVAILABLE = True
 except Exception as exc:  # noqa: BLE001 - we want any import failure here
+    _eo_idx = None
     _EO_MONITOR_IMPORT_ERROR = exc
 
     # Local fallbacks (numerically identical normalised-difference formulas).
     # These let the colour-mapping helpers and smoke tests run without the
     # heavy dependency, but the app surfaces a clear message (see
-    # ``require_eo_monitor``) so reviewers know the intent is real reuse.
+    # ``require_eo_monitor``) so reviewers know the intent is real reuse. Only
+    # the smoke-tested normalised-difference indices need a fallback; the wider
+    # catalogue resolves from eo-monitor in the production path.
     def _normalized_difference(a, b):
         import numpy as np
 
@@ -54,6 +60,28 @@ except Exception as exc:  # noqa: BLE001 - we want any import failure here
 
     def _ndmi(nir, swir1):  # type: ignore[misc]
         return _normalized_difference(nir, swir1)
+
+
+def _eo_func(name: str, fallback: Callable[..., Any] | None = None) -> Callable[..., Any]:
+    """Return the eo-monitor index function ``name``, or a local fallback.
+
+    The production path always prefers the reused ``eo_monitor.indices``
+    function. When eo-monitor is not installed we use ``fallback`` if one is
+    given (the three normalised-difference indices the smoke tests exercise),
+    otherwise a stub that raises a clear error the moment it is called -- the UI
+    already blocks compute via :func:`require_eo_monitor`, so this stub is only a
+    safety net and never runs in the tested path.
+    """
+    if _eo_idx is not None:
+        return getattr(_eo_idx, name)
+    if fallback is not None:
+        return fallback
+
+    def _missing(*_args, **_kwargs):
+        require_eo_monitor()
+        raise ImportError(f"eo-monitor index {name!r} is unavailable.")
+
+    return _missing
 
 
 def require_eo_monitor() -> None:
@@ -80,7 +108,13 @@ def require_eo_monitor() -> None:
 
 @dataclass(frozen=True)
 class IndexSpec:
-    """Describes one selectable spectral index."""
+    """Describes one selectable spectral index.
+
+    ``bands`` lists the Sentinel-2 L2A asset names in the exact order the
+    ``func`` takes them positionally (``compute_index`` calls
+    ``func(*[dataset[b] for b in spec.bands])``), so the order here must match
+    the reused eo-monitor signature. ``category`` groups the index in the UI.
+    """
 
     name: str
     description: str
@@ -89,38 +123,378 @@ class IndexSpec:
     vmin: float
     vmax: float
     colormap: str
+    category: str
 
 
-#: The indices the UI offers, wired to the (reused) eo-monitor functions.
+def _spec(name, description, eo_name, bands, vmin, vmax, colormap, category, fallback=None):
+    """Build an :class:`IndexSpec` wired to the reused eo-monitor function."""
+    return IndexSpec(
+        name=name,
+        description=description,
+        func=_eo_func(eo_name, fallback),
+        bands=bands,
+        vmin=vmin,
+        vmax=vmax,
+        colormap=colormap,
+        category=category,
+    )
+
+
+# Sentinel-2 L2A (Earth Search) asset names used below:
+#   blue, green, red, rededge1, nir, swir16 (SWIR1), swir22 (SWIR2).
+# Each ``bands`` tuple is ordered to match the reused eo_monitor.indices
+# function signature. Indices with additive constants (EVI, SAVI, MSAVI, AWEI,
+# BAI, LAI) assume surface reflectance in [0, 1]; stac.load_scene scales the
+# bands accordingly before compute_index runs.
 INDEX_REGISTRY: dict[str, IndexSpec] = {
-    "NDVI": IndexSpec(
-        name="NDVI",
-        description="Normalised Difference Vegetation Index (greenness).",
-        func=_ndvi,
-        # Order matches eo_monitor.indices.ndvi(nir, red); compute_index passes
-        # bands positionally, so this must be (nir, red), not (red, nir).
-        bands=("nir", "red"),
-        vmin=-0.2,
-        vmax=0.9,
-        colormap="RdYlGn",
+    # ----------------------------- Vegetation ----------------------------- #
+    "NDVI": _spec(
+        "NDVI",
+        "Normalised Difference Vegetation Index (greenness).",
+        "ndvi",
+        ("nir", "red"),
+        -0.2,
+        0.9,
+        "RdYlGn",
+        "Vegetation",
+        fallback=_ndvi,
     ),
-    "NDWI": IndexSpec(
-        name="NDWI",
-        description="Normalised Difference Water Index (open water).",
-        func=_ndwi,
-        bands=("green", "nir"),
-        vmin=-0.5,
-        vmax=0.7,
-        colormap="Blues",
+    "EVI": _spec(
+        "EVI",
+        "Enhanced Vegetation Index (aerosol-corrected greenness).",
+        "evi",
+        ("nir", "red", "blue"),
+        -0.2,
+        1.0,
+        "RdYlGn",
+        "Vegetation",
     ),
-    "NDMI": IndexSpec(
-        name="NDMI",
-        description="Normalised Difference Moisture Index (vegetation water content).",
-        func=_ndmi,
-        bands=("nir", "swir16"),
-        vmin=-0.4,
-        vmax=0.6,
-        colormap="BrBG",
+    "EVI2": _spec(
+        "EVI2",
+        "Two-band Enhanced Vegetation Index (no blue band).",
+        "evi2",
+        ("nir", "red"),
+        -0.2,
+        1.0,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "SAVI": _spec(
+        "SAVI",
+        "Soil-Adjusted Vegetation Index (L=0.5).",
+        "savi",
+        ("nir", "red"),
+        -0.2,
+        0.9,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "MSAVI": _spec(
+        "MSAVI",
+        "Modified Soil-Adjusted Vegetation Index (self-adjusting L).",
+        "msavi",
+        ("nir", "red"),
+        -0.2,
+        0.9,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "GNDVI": _spec(
+        "GNDVI",
+        "Green NDVI (chlorophyll-sensitive greenness).",
+        "gndvi",
+        ("nir", "green"),
+        -0.2,
+        0.9,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "ARVI": _spec(
+        "ARVI",
+        "Atmospherically Resistant Vegetation Index.",
+        "arvi",
+        ("nir", "red", "blue"),
+        -0.2,
+        0.9,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "NDRE": _spec(
+        "NDRE",
+        "Normalised Difference Red-Edge (canopy chlorophyll).",
+        "ndre",
+        ("nir", "rededge1"),
+        -0.2,
+        0.8,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "VARI": _spec(
+        "VARI",
+        "Visible Atmospherically Resistant Index (RGB greenness).",
+        "vari",
+        ("green", "red", "blue"),
+        -0.5,
+        0.5,
+        "RdYlGn",
+        "Vegetation",
+    ),
+    "RVI": _spec(
+        "RVI",
+        "Ratio Vegetation Index = NIR / Red.",
+        "rvi",
+        ("nir", "red"),
+        0.0,
+        10.0,
+        "YlGn",
+        "Vegetation",
+    ),
+    "DVI": _spec(
+        "DVI",
+        "Difference Vegetation Index = NIR - Red.",
+        "dvi",
+        ("nir", "red"),
+        -0.1,
+        0.6,
+        "YlGn",
+        "Vegetation",
+    ),
+    "CIGREEN": _spec(
+        "CIgreen",
+        "Chlorophyll Index - green = NIR / Green - 1.",
+        "ci_green",
+        ("nir", "green"),
+        0.0,
+        8.0,
+        "YlGn",
+        "Vegetation",
+    ),
+    "CIREDEDGE": _spec(
+        "CIrededge",
+        "Chlorophyll Index - red-edge = NIR / RE - 1.",
+        "ci_rededge",
+        ("nir", "rededge1"),
+        0.0,
+        6.0,
+        "YlGn",
+        "Vegetation",
+    ),
+    "MCARI": _spec(
+        "MCARI",
+        "Modified Chlorophyll Absorption in Reflectance Index.",
+        "mcari",
+        ("rededge1", "red", "green"),
+        0.0,
+        1.5,
+        "YlGn",
+        "Vegetation",
+    ),
+    "TCARI": _spec(
+        "TCARI",
+        "Transformed Chlorophyll Absorption in Reflectance Index.",
+        "tcari",
+        ("rededge1", "red", "green"),
+        0.0,
+        1.5,
+        "YlGn",
+        "Vegetation",
+    ),
+    "LAI": _spec(
+        "LAI",
+        "Leaf Area Index (approximate empirical relation from EVI).",
+        "lai",
+        ("nir", "red", "blue"),
+        0.0,
+        6.0,
+        "YlGn",
+        "Vegetation",
+    ),
+    # ------------------------------- Water -------------------------------- #
+    "NDWI": _spec(
+        "NDWI",
+        "Normalised Difference Water Index (open water).",
+        "ndwi",
+        ("green", "nir"),
+        -0.5,
+        0.7,
+        "Blues",
+        "Water",
+        fallback=_ndwi,
+    ),
+    "MNDWI": _spec(
+        "MNDWI",
+        "Modified NDWI (Green/SWIR1, suppresses built-up).",
+        "mndwi",
+        ("green", "swir16"),
+        -0.5,
+        0.8,
+        "Blues",
+        "Water",
+    ),
+    "NDMI": _spec(
+        "NDMI",
+        "Normalised Difference Moisture Index (canopy water).",
+        "ndmi",
+        ("nir", "swir16"),
+        -0.4,
+        0.6,
+        "BrBG",
+        "Water",
+        fallback=_ndmi,
+    ),
+    "AWEI": _spec(
+        "AWEI",
+        "Automated Water Extraction Index (no-shadow form).",
+        "awei",
+        ("green", "nir", "swir16", "swir22"),
+        -2.0,
+        2.0,
+        "Blues",
+        "Water",
+    ),
+    "NDII": _spec(
+        "NDII",
+        "Normalised Difference Infrared Index (= NDMI formula).",
+        "ndii",
+        ("nir", "swir16"),
+        -0.4,
+        0.6,
+        "BrBG",
+        "Water",
+    ),
+    # ------------------------------- Soil --------------------------------- #
+    "BSI": _spec(
+        "BSI",
+        "Bare Soil Index.",
+        "bsi",
+        ("swir16", "red", "nir", "blue"),
+        -0.5,
+        0.5,
+        "YlOrBr",
+        "Soil",
+    ),
+    "SI": _spec(
+        "SI",
+        "Soil Salinity Index = sqrt(Green*Red) (one common form).",
+        "salinity_index",
+        ("green", "red"),
+        0.0,
+        0.5,
+        "YlOrBr",
+        "Soil",
+    ),
+    "IRONOXIDE": _spec(
+        "IronOxide",
+        "Iron Oxide ratio = Red / Blue.",
+        "iron_oxide",
+        ("red", "blue"),
+        0.5,
+        3.0,
+        "OrRd",
+        "Soil",
+    ),
+    "CLAYMINERALS": _spec(
+        "ClayMinerals",
+        "Clay Minerals ratio = SWIR1 / SWIR2.",
+        "clay_minerals",
+        ("swir16", "swir22"),
+        0.8,
+        2.0,
+        "OrRd",
+        "Soil",
+    ),
+    "FERROUSMINERALS": _spec(
+        "FerrousMinerals",
+        "Ferrous Minerals ratio = SWIR1 / NIR.",
+        "ferrous_minerals",
+        ("swir16", "nir"),
+        0.3,
+        1.5,
+        "OrRd",
+        "Soil",
+    ),
+    # ------------------------------ Built-up ------------------------------ #
+    "NDBI": _spec(
+        "NDBI",
+        "Normalised Difference Built-up Index.",
+        "ndbi",
+        ("swir16", "nir"),
+        -0.5,
+        0.5,
+        "PuRd",
+        "Built-up",
+    ),
+    "UI": _spec(
+        "UI",
+        "Urban Index = (SWIR2 - NIR) / (SWIR2 + NIR).",
+        "ui",
+        ("swir22", "nir"),
+        -0.5,
+        0.5,
+        "PuRd",
+        "Built-up",
+    ),
+    "IBI": _spec(
+        "IBI",
+        "Index-Based Built-up Index (combines NDBI, SAVI, MNDWI).",
+        "ibi",
+        ("swir16", "nir", "red", "green"),
+        -0.5,
+        0.5,
+        "PuRd",
+        "Built-up",
+    ),
+    # ------------------------------- Snow --------------------------------- #
+    "NDSI": _spec(
+        "NDSI",
+        "Normalised Difference Snow Index.",
+        "ndsi",
+        ("green", "swir16"),
+        -0.5,
+        1.0,
+        "PuBu",
+        "Snow",
+    ),
+    "NDGI": _spec(
+        "NDGI",
+        "Normalised Difference Glacier Index (green/red variant).",
+        "ndgi",
+        ("green", "red"),
+        -0.5,
+        0.5,
+        "PuBu",
+        "Snow",
+    ),
+    # ------------------------------- Fire --------------------------------- #
+    "NBR": _spec(
+        "NBR",
+        "Normalised Burn Ratio (burn severity).",
+        "nbr",
+        ("nir", "swir22"),
+        -0.5,
+        1.0,
+        "RdYlGn",
+        "Fire",
+    ),
+    "NBR2": _spec(
+        "NBR2",
+        "Normalised Burn Ratio 2 (SWIR1/SWIR2).",
+        "nbr2",
+        ("swir16", "swir22"),
+        -0.5,
+        0.5,
+        "RdYlGn",
+        "Fire",
+    ),
+    "BAI": _spec(
+        "BAI",
+        "Burned Area Index (highlights charcoal-dark scars).",
+        "bai",
+        ("red", "nir"),
+        0.0,
+        500.0,
+        "inferno",
+        "Fire",
     ),
 }
 
@@ -128,6 +502,14 @@ INDEX_REGISTRY: dict[str, IndexSpec] = {
 def list_indices() -> list[str]:
     """Return the selectable index names in display order."""
     return list(INDEX_REGISTRY)
+
+
+def list_indices_by_category() -> dict[str, list[str]]:
+    """Return a mapping of category -> list of index names, in registry order."""
+    out: dict[str, list[str]] = {}
+    for name, spec in INDEX_REGISTRY.items():
+        out.setdefault(spec.category, []).append(name)
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -259,9 +641,7 @@ def add_overlay_legend(folium_map, overlay: dict) -> None:
 
     cmap = matplotlib.colormaps[overlay["colormap"]]
     colours = [matplotlib.colors.to_hex(cmap(t)) for t in np.linspace(0.0, 1.0, 9)]
-    legend = branca_cm.LinearColormap(
-        colours, vmin=overlay["vmin"], vmax=overlay["vmax"]
-    )
+    legend = branca_cm.LinearColormap(colours, vmin=overlay["vmin"], vmax=overlay["vmax"])
     legend.caption = f"{overlay['name']} - {overlay['description']}"
     legend.add_to(folium_map)
 
@@ -407,7 +787,12 @@ def index_stats(data) -> dict[str, float]:
     arr = np.asarray(data, dtype="float64")
     finite = arr[np.isfinite(arr)]
     if finite.size == 0:
-        return {"min": float("nan"), "mean": float("nan"), "max": float("nan"), "valid_fraction": 0.0}
+        return {
+            "min": float("nan"),
+            "mean": float("nan"),
+            "max": float("nan"),
+            "valid_fraction": 0.0,
+        }
     return {
         "min": float(finite.min()),
         "mean": float(finite.mean()),
