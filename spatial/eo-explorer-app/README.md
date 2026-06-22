@@ -4,7 +4,6 @@
 > (Streamlit Community Cloud; the free tier sleeps after inactivity, so the first
 > load may take a few seconds to wake.)
 
-<!-- TODO (after deploy): replace docs/screenshot.png with a real screenshot of the running app. -->
 ![EO Explorer screenshot](docs/screenshot.png)
 
 [![CI](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/mbongowo/Data-science-Portfolio/actions/workflows/ci.yml)

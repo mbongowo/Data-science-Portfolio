@@ -1,22 +1,43 @@
 # Profile README
 
-Drop the section below into a repository named after your GitHub account (`mbongowo/mbongowo`), in its `README.md`. GitHub shows that file at the top of your profile page. Replace the lead sentence with your own words once you are happy with it.
-
-After you push this portfolio, pin the repository on your profile (Customize your pins) so it shows first.
+Drop the section below the `---` into a repository named after your GitHub
+account (`mbongowo/mbongowo`), in its `README.md`. GitHub shows that file at the
+top of your profile page. (This repo now has it pushed there already; edit and
+re-push when the portfolio changes.) After pushing, pin the `Data-science-Portfolio`
+repository on your profile (Customize your pins) so it shows first.
 
 ---
 
-### Hi, I'm Joseph Mbuh
+### Hi, I'm Joseph Mbuh 👋
 
-I work in spatial data science: remote sensing, Python geospatial pipelines, GeoAI, and analysis that reruns from a clean clone. I care more about whether someone else can reproduce a result than about how the notebook looked the day I wrote it.
+I work in data science across two areas: **spatial / remote sensing** (Python
+geospatial pipelines, GeoAI, reproducible Earth-observation analysis) and
+**large-scale "big data"** analytics (streaming, distributed processing, the
+modern data stack). I care more about whether someone else can reproduce a result
+from a clean clone than about how the notebook looked the day I wrote it.
 
-**Portfolio:** [Data-science-Portfolio](https://github.com/mbongowo/Data-science-Portfolio) — six projects, each with its own environment, tests, and docs.
+**Portfolio:** [Data-science-Portfolio](https://github.com/mbongowo/Data-science-Portfolio)
+— 14 projects in two tracks, each with its own environment, hand-derived
+known-answer tests, CI, and docs. Every project ships a one-command reproducible
+demo.
 
-- **eo-monitor** — Sentinel-2 from STAC to anomaly maps and cloud-optimised GeoTIFFs, one command, no manual downloads.
+**🛰️ Live app — [EO Explorer](https://data-science-portfolio-kpnqhpxmfzgwpgwbxkejql.streamlit.app/):**
+draw an area, pick a date and a spectral index, and see live Sentinel-2 rendered
+on a map (the index maths is reused from the `eo-monitor` package).
+
+[![EO Explorer](https://raw.githubusercontent.com/mbongowo/Data-science-Portfolio/main/spatial/eo-explorer-app/docs/screenshot.png)](https://data-science-portfolio-kpnqhpxmfzgwpgwbxkejql.streamlit.app/)
+
+**Spatial track**
+- **eo-monitor** — Sentinel-2 from STAC to spectral indices, anomaly maps, and cloud-optimised GeoTIFFs, one command, no manual downloads.
 - **access-to-care** — travel time to the nearest clinic over a road network, weighted by population, built around Cameroon.
-- **spatial-hotspots** — spatial autocorrelation and cluster maps, with the interpretation and the limits written out.
-- **geoai-segmentation** — a segmentation model set up so a reported metric can be reproduced from the committed seed and config.
-- **disturbance-detection** — NDVI time series, breakpoint detection, and maps of when and where the land changed.
-- **eo-explorer-app** — a web app that renders live Sentinel-2 for an area you draw, reusing the index code from eo-monitor.
+- **spatial-hotspots** — spatial autocorrelation and cluster maps (Moran's I, LISA, Getis-Ord Gi\*), with the interpretation and the limits written out.
+- **geoai-segmentation** — a segmentation model set up so a reported metric reproduces from the committed seed and config, with a model card.
+- **disturbance-detection** — NDVI time series, harmonic decomposition, and breakpoint detection of when and where the land changed.
+- **eo-explorer-app** — the deployed interactive web app above, reusing the index code from `eo-monitor`.
 
-Each project's pure-numerical core is unit-tested and runs in CI; the full data pipelines are documented per project.
+**Big-data track**
+- **clickstream-pipeline** (Kafka + Spark streaming), **log-anomaly** (Spark + anomaly detection on labelled logs), **als-recommender** (Spark MLlib), **sentiment-scale** (Spark + NLP), **tlc-analytics** (a Spark/DuckDB/warehouse engine bake-off), **dbt-modern-stack** (dbt + orchestration), **crypto-backtest** (a no-look-ahead backtest), **graph-analysis** (PageRank / communities / triangles at scale).
+
+Each project's pure-numerical core is unit-tested and runs in CI (~800 known-answer
+tests across the repo); the full data and compute pipelines are documented per
+project.
