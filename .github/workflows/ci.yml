@@ -20,6 +20,7 @@ jobs:
           - spatial/disturbance-detection
           - spatial/eo-explorer-app
           - spatial/01-segment-geospatial
+          - spatial/02-earth-engine-timeseries
           - non-spatial/clickstream-pipeline
           - non-spatial/log-anomaly
           - non-spatial/als-recommender

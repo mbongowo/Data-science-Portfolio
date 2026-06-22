@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eets"
+version = "0.1.0"
+description = "Multi-year vegetation-change & forest-loss detection from Sentinel-2 time series: index series, baseline vs recent composites, change map, hectares, dNBR burn severity."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+keywords = ["sentinel-2", "stac", "earth-engine", "geemap", "change-detection", "forest-loss", "ndvi", "dnbr", "cameroon", "remote-sensing"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "pystac-client>=0.7",
+    "odc-stac>=0.3",
+    "rioxarray>=0.15",
+    "xarray>=2024.1",
+    "rasterio>=1.3",
+    "matplotlib>=3.7",
+]
+gee = [
+    "earthengine-api>=0.1.380",
+    "geemap>=0.30",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+eets = "eets.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial/02-earth-engine-timeseries"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eets"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+# Notebooks and the notebook builder use inline-plotting idioms (semicolons,
+# long display strings) that are conventional there but trip the lint rules.
+extend-exclude = ["notebooks", "*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W", "N", "C4", "SIM"]
+ignore = ["N803", "N806"]  # allow X, W etc. (math conventions)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

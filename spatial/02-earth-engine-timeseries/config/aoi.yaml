@@ -1,0 +1,52 @@
+# Area-of-interest and analysis configuration for the multi-year change pipeline.
+# Everything that changes "what" is analysed and how change is classified lives
+# here; the STAC / CLI code reads it. The dependency-free `demo` ignores this
+# file and uses its own fixed synthetic scene.
+
+# --------------------------------------------------------------------------- #
+# Study area
+# --------------------------------------------------------------------------- #
+aoi:
+  name: "east_cameroon_forest"
+  description: >
+    A forest block in south-eastern Cameroon (near the Dja / Boumba-Bek
+    lowland-forest belt) for multi-year NDVI change and forest-loss detection
+    from Sentinel-2. Keep the bbox a few km across so the STAC load and the
+    composite stay tractable on a laptop. This is the default so the project runs
+    out of the box; point it anywhere by editing the bbox below.
+  # EPSG:4326 (lon/lat) bounding box. ~11 x 11 km here.
+  bbox:
+    min_lon: 13.50
+    min_lat: 3.30
+    max_lon: 13.60
+    max_lat: 3.40
+  # Projected CRS for area-correct measurement. This part of Cameroon sits in
+  # UTM zone 33N; the western half of the country is zone 32N (EPSG:32632).
+  crs: "EPSG:32633"
+
+# --------------------------------------------------------------------------- #
+# Time periods to compare (baseline vs recent)
+# --------------------------------------------------------------------------- #
+# Sentinel-2 L2A is available from ~2017 onward, so a two-year window each end
+# gives enough cloud-free observations to build a robust median composite over a
+# perennially cloudy equatorial forest.
+baseline_years:
+  start: "2018-01-01"
+  end: "2019-12-31"
+recent_years:
+  start: "2023-01-01"
+  end: "2024-12-31"
+
+# --------------------------------------------------------------------------- #
+# Change analysis
+# --------------------------------------------------------------------------- #
+analysis:
+  index: "ndvi"          # ndvi | ndwi | nbr
+  pixel_size_m: 10.0     # Sentinel-2 visible/NIR ground sample distance (m/px)
+  max_cloud: 40.0        # max scene cloud cover (%) admitted to a composite
+  # NDVI change thresholds on (recent - baseline). A drop of 0.20 or more is
+  # flagged as loss; a rise of 0.20 or more as gain. Tune to local dynamics.
+  loss_thresh: -0.20
+  gain_thresh: 0.20
+  # SCL classes masked out before compositing (cloud, shadow, snow, nodata).
+  invalid_scl: [0, 1, 3, 8, 9, 10, 11]
