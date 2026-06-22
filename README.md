@@ -19,12 +19,12 @@ the flagship does, so the projects visibly compose rather than repeat.
 
 | # | Folder | What it does | Main skill |
 |---|--------|--------------|------------|
-| 1 | [`eo-monitor`](./eo-monitor) | Pulls Sentinel-2 from a STAC catalogue over an area of interest, computes vegetation and moisture indices, scores anomalies against a baseline, and writes cloud-optimised GeoTIFFs. One command, no manual downloads. | Cloud-native EO pipeline (STAC, Dask, COGs) |
-| 2 | [`access-to-care`](./access-to-care) | Travel time from each populated place to the nearest health facility over a road network, weighted by population to show who is far from care. Built around Cameroon. | Vector and network analysis |
-| 3 | [`spatial-hotspots`](./spatial-hotspots) | Exploratory spatial data analysis: spatial weights, global and local autocorrelation, cluster and outlier maps, with the interpretation written out and the limits stated. | Spatial statistics and significance |
-| 4 | [`geoai-segmentation`](./geoai-segmentation) | A semantic-segmentation model on Earth-observation imagery, set up so a reported number can be reproduced from the committed seed, config, and checkpoint. | Reproducible deep learning + model card |
-| 5 | [`disturbance-detection`](./disturbance-detection) | A multi-year NDVI time cube, a per-pixel seasonal-trend fit, breakpoint detection, and maps of the date and size of disturbance, checked against a recorded event. | Time-series change detection |
-| 6 | [`eo-explorer-app`](./eo-explorer-app) | A web app where you draw an area, pick a date and an index, and see live Sentinel-2 rendered on a map. The index code is imported from `eo-monitor`. | A deployable interactive app |
+| 1 | [`eo-monitor`](./spatial/eo-monitor) | Pulls Sentinel-2 from a STAC catalogue over an area of interest, computes vegetation and moisture indices, scores anomalies against a baseline, and writes cloud-optimised GeoTIFFs. One command, no manual downloads. | Cloud-native EO pipeline (STAC, Dask, COGs) |
+| 2 | [`access-to-care`](./spatial/access-to-care) | Travel time from each populated place to the nearest health facility over a road network, weighted by population to show who is far from care. Built around Cameroon. | Vector and network analysis |
+| 3 | [`spatial-hotspots`](./spatial/spatial-hotspots) | Exploratory spatial data analysis: spatial weights, global and local autocorrelation, cluster and outlier maps, with the interpretation written out and the limits stated. | Spatial statistics and significance |
+| 4 | [`geoai-segmentation`](./spatial/geoai-segmentation) | A semantic-segmentation model on Earth-observation imagery, set up so a reported number can be reproduced from the committed seed, config, and checkpoint. | Reproducible deep learning + model card |
+| 5 | [`disturbance-detection`](./spatial/disturbance-detection) | A multi-year NDVI time cube, a per-pixel seasonal-trend fit, breakpoint detection, and maps of the date and size of disturbance, checked against a recorded event. | Time-series change detection |
+| 6 | [`eo-explorer-app`](./spatial/eo-explorer-app) | A web app where you draw an area, pick a date and an index, and see live Sentinel-2 rendered on a map. The index code is imported from `eo-monitor`. | A deployable interactive app |
 
 `eo-explorer-app` depends on `eo-monitor` and calls its index functions directly,
 so the app and the pipeline share one definition of NDVI rather than two copies.
@@ -53,14 +53,14 @@ use.
 
 | # | Folder | What it does | Core engine |
 |---|--------|--------------|-------------|
-| 1 | [`clickstream-pipeline`](./clickstream-pipeline) | A real-time event-analytics pipeline: ingest a high-volume stream and turn raw clicks into live windowed metrics, with a watermarking story for late/out-of-order events. | Kafka + Spark Structured Streaming |
-| 2 | [`log-anomaly`](./log-anomaly) | Parse tens of millions of messy machine logs into templates and event-count features, then flag anomalies and score precision/recall against the labelled HDFS set. | Spark + scikit-learn |
-| 3 | [`als-recommender`](./als-recommender) | Collaborative filtering at scale on MovieLens-25M, evaluated like a real ML system: RMSE plus ranking metrics against an honest popularity baseline. | Spark MLlib (ALS) |
-| 4 | [`sentiment-scale`](./sentiment-scale) | Process tens of millions of Reddit posts into a sentiment-over-time dataset, with the lexicon scoring validated on a labelled sample. | Spark + NLP |
-| 5 | [`tlc-analytics`](./tlc-analytics) | An honest engine bake-off on billions of NYC taxi rows (no geo): the same analytical workload across Spark, DuckDB, and a warehouse, benchmarked. | Spark / DuckDB / warehouse |
-| 6 | [`dbt-modern-stack`](./dbt-modern-stack) | The pipeline employers actually hire for: batch ETL into a warehouse, layered dbt models with tests and lineage, orchestration, and a BI layer. | dbt + DuckDB + orchestration |
-| 7 | [`crypto-backtest`](./crypto-backtest) | High-frequency tick data resampled to bars and run through a reproducible backtest — emphasis on rigour: realistic fees/slippage and no look-ahead bias. | Spark / Polars |
-| 8 | [`graph-analysis`](./graph-analysis) | Graph algorithms at scale on a large SNAP network: PageRank, community detection, and triangle counting, with the results actually interpreted. | Spark GraphFrames |
+| 1 | [`clickstream-pipeline`](./non-spatial/clickstream-pipeline) | A real-time event-analytics pipeline: ingest a high-volume stream and turn raw clicks into live windowed metrics, with a watermarking story for late/out-of-order events. | Kafka + Spark Structured Streaming |
+| 2 | [`log-anomaly`](./non-spatial/log-anomaly) | Parse tens of millions of messy machine logs into templates and event-count features, then flag anomalies and score precision/recall against the labelled HDFS set. | Spark + scikit-learn |
+| 3 | [`als-recommender`](./non-spatial/als-recommender) | Collaborative filtering at scale on MovieLens-25M, evaluated like a real ML system: RMSE plus ranking metrics against an honest popularity baseline. | Spark MLlib (ALS) |
+| 4 | [`sentiment-scale`](./non-spatial/sentiment-scale) | Process tens of millions of Reddit posts into a sentiment-over-time dataset, with the lexicon scoring validated on a labelled sample. | Spark + NLP |
+| 5 | [`tlc-analytics`](./non-spatial/tlc-analytics) | An honest engine bake-off on billions of NYC taxi rows (no geo): the same analytical workload across Spark, DuckDB, and a warehouse, benchmarked. | Spark / DuckDB / warehouse |
+| 6 | [`dbt-modern-stack`](./non-spatial/dbt-modern-stack) | The pipeline employers actually hire for: batch ETL into a warehouse, layered dbt models with tests and lineage, orchestration, and a BI layer. | dbt + DuckDB + orchestration |
+| 7 | [`crypto-backtest`](./non-spatial/crypto-backtest) | High-frequency tick data resampled to bars and run through a reproducible backtest — emphasis on rigour: realistic fees/slippage and no look-ahead bias. | Spark / Polars |
+| 8 | [`graph-analysis`](./non-spatial/graph-analysis) | Graph algorithms at scale on a large SNAP network: PageRank, community detection, and triangle counting, with the results actually interpreted. | Spark GraphFrames |
 
 Depth beats breadth: each of these is a complete, documented, reproducible piece
 rather than a stub. For a data-engineering read, start with `clickstream-pipeline`,

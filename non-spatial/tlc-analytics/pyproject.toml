@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tlc-analytics"
+version = "0.1.0"
+description = "NYC TLC trip-record analytics at billions-of-rows scale: a tabular engine bake-off (Spark vs DuckDB vs warehouse)."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+keywords = ["nyc-tlc", "duckdb", "spark", "parquet", "benchmark", "analytics", "data-engineering"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+    "pyarrow>=14.0",
+]
+
+[project.optional-dependencies]
+engines = [
+    "duckdb>=0.10",
+    "pyspark>=3.5",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "typer>=0.12",
+]
+
+[project.scripts]
+tlc = "tlc.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/non-spatial/tlc-analytics"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tlc"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W", "N", "C4", "SIM"]
+ignore = ["N803", "N806"]  # allow X, W etc. (math conventions)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

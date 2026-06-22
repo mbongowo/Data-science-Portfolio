@@ -13,20 +13,20 @@ jobs:
       fail-fast: false
       matrix:
         project:
-          - eo-monitor
-          - access-to-care
-          - spatial-hotspots
-          - geoai-segmentation
-          - disturbance-detection
-          - eo-explorer-app
-          - clickstream-pipeline
-          - log-anomaly
-          - als-recommender
-          - sentiment-scale
-          - tlc-analytics
-          - dbt-modern-stack
-          - crypto-backtest
-          - graph-analysis
+          - spatial/eo-monitor
+          - spatial/access-to-care
+          - spatial/spatial-hotspots
+          - spatial/geoai-segmentation
+          - spatial/disturbance-detection
+          - spatial/eo-explorer-app
+          - non-spatial/clickstream-pipeline
+          - non-spatial/log-anomaly
+          - non-spatial/als-recommender
+          - non-spatial/sentiment-scale
+          - non-spatial/tlc-analytics
+          - non-spatial/dbt-modern-stack
+          - non-spatial/crypto-backtest
+          - non-spatial/graph-analysis
     steps:
       - uses: actions/checkout@v4
 

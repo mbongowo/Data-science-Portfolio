@@ -1,0 +1,94 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eo-explorer-app"
+version = "0.1.0"
+description = "A shippable interactive Earth-observation explorer: draw an AOI, pick a date, render a live Sentinel-2 spectral index on a map."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10,<3.13"
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+keywords = ["earth-observation", "sentinel-2", "stac", "streamlit", "folium", "ndvi"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+dependencies = [
+    "streamlit>=1.32",
+    "streamlit-folium>=0.20",
+    "folium>=0.16",
+    "branca>=0.7",
+    "pillow>=10.0",
+    "pystac-client>=0.7",
+    "odc-stac>=0.3.8",
+    "rioxarray>=0.15",
+    "xarray>=2024.1",
+    "rasterio>=1.3",
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "dask>=2024.1",
+    # --- Reused flagship index code (Project 1) -------------------------------
+    # eo-explorer reuses the spectral-index functions from the eo-monitor
+    # package instead of copy-pasting them. Pick ONE of the install forms:
+    #
+    #   1. Local editable (sibling repo at ../eo-monitor) -- recommended for dev:
+    #        pip install -e ../eo-monitor
+    #
+    #   2. Git dependency (uncomment the line below, or use [project.optional...]):
+    #        "eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=spatial/eo-monitor",
+    #
+    # It is intentionally NOT a hard dependency here so the app installs and the
+    # smoke tests run even before eo-monitor is built; render.require_eo_monitor()
+    # raises a clear, actionable error at runtime if it is missing.
+]
+
+[project.optional-dependencies]
+# `pip install eo-explorer-app[eo-monitor-git]` to pull the flagship package
+# straight from GitHub.
+eo-monitor-git = [
+    "eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=spatial/eo-monitor",
+]
+# Local development extras.
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+    "pre-commit>=3.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial/eo-explorer-app"
+"Flagship (eo-monitor)" = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial/eo-monitor"
+
+[project.scripts]
+# Convenience: `eo-explorer` -> launches the streamlit app.
+# (Implemented as a thin wrapper around `streamlit run app/main.py`.)
+
+# uv understands [tool.uv.sources] for resolving the local/git eo-monitor.
+[tool.uv.sources]
+eo-monitor = { path = "../eo-monitor", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# The package lives at the project root (app/), so put it on sys.path for pytest.
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B018"]
+"app/render.py" = ["B009", "B010"]
