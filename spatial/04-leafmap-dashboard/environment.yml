@@ -1,0 +1,14 @@
+name: leafmap-dashboard
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10,<3.13
+  - numpy>=1.26
+  - pandas>=2.1
+  - pyyaml>=6.0
+  - leafmap>=0.30
+  - geopandas>=0.14
+  - streamlit>=1.32
+  - folium>=0.16
+  - mapclassify>=2.6
+  - pytest>=8.0

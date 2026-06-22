@@ -1,0 +1,35 @@
+# Configuration for the clinic-access dashboard.
+#
+# Note: `python -m clinicaccess.cli demo` synthesizes its own seeded data inside
+# the bbox below and ignores `data_paths`. These settings drive the app's
+# defaults and the `report` pipeline on real CSVs.
+
+study_area:
+  country: "Cameroon"
+  iso3: "CMR"
+  # Bounding box (W, S, E, N) in WGS84, used by the demo synthesizer.
+  bbox: [8.5, 2.0, 16.0, 13.0]
+
+# Distance thresholds (km) for the coverage summary.
+thresholds_km: [5, 10, 25]
+
+# How many farthest (most underserved) places to rank.
+farthest_n: 10
+
+# Default "underserved" slider value in the app (km).
+underserved_threshold_km: 25
+
+# Bundled sample data shipped with the app (synthetic; see README).
+data_paths:
+  places: "app/sample_data/cameroon_places.csv"
+  facilities: "app/sample_data/cameroon_facilities.csv"
+
+# Graduated colour bins for the map (interior edges in km; bands derived from
+# these are 0-5, 5-10, 10-25, 25+).
+colour_bins:
+  edges_km: [5, 10, 25]
+  colours:
+    "0-5 km": "#1a9850"
+    "5-10 km": "#91cf60"
+    "10-25 km": "#fee08b"
+    "25+ km": "#d73027"

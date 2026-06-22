@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "leafmap-dashboard"
+version = "0.1.0"
+description = "Straight-line clinic-access screening dashboard for Cameroon (leafmap + Streamlit)"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+requires-python = ">=3.10,<3.13"
+keywords = ["geospatial", "accessibility", "health", "cameroon", "leafmap", "streamlit"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+app = [
+    "streamlit>=1.32",
+    "leafmap>=0.30",
+    "folium>=0.16",
+    "geopandas>=0.14",
+    "mapclassify>=2.6",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial/04-leafmap-dashboard"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[project.scripts]
+clinicaccess = "clinicaccess.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clinicaccess"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# The Streamlit entrypoint bootstraps sys.path before importing the package, so
+# its module-level imports intentionally come after that block.
+"app/streamlit_app.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

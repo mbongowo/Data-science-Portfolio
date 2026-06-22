@@ -1,0 +1,17 @@
+# Deploy manifest for Streamlit Community Cloud.
+#
+# Cloud searches the entrypoint file's directory first, then the repo root, so
+# this file (next to streamlit_app.py) is the one it installs from. Open the
+# deploy dialog's Advanced settings and pick Python 3.12 (leafmap/geopandas
+# wheels are reliable there).
+#
+# The numeric core (clinicaccess) needs only numpy + pandas; the rest is the
+# interactive map stack used by app/streamlit_app.py.
+
+streamlit>=1.32
+leafmap>=0.30
+folium>=0.16
+geopandas>=0.14
+mapclassify>=2.6
+pandas>=2.1
+numpy>=1.26

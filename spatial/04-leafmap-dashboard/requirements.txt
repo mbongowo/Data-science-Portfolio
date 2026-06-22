@@ -1,0 +1,12 @@
+# Core (tested) dependencies: the numeric pipeline needs only these.
+numpy>=1.26
+pandas>=2.1
+pyyaml>=6.0
+
+# App / full stack (the leafmap + Streamlit dashboard). Not needed for tests;
+# Streamlit Cloud installs from app/requirements.txt instead.
+streamlit>=1.32
+leafmap>=0.30
+folium>=0.16
+geopandas>=0.14
+mapclassify>=2.6

@@ -22,6 +22,7 @@ jobs:
           - spatial/01-segment-geospatial
           - spatial/02-earth-engine-timeseries
           - spatial/03-torchgeo-landcover
+          - spatial/04-leafmap-dashboard
           - non-spatial/clickstream-pipeline
           - non-spatial/log-anomaly
           - non-spatial/als-recommender
