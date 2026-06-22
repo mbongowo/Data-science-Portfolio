@@ -12,6 +12,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Streamlit](https://img.shields.io/badge/built%20with-streamlit-FF4B4B)](https://streamlit.io)
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=mbongowo/Data-science-Portfolio&branch=main&mainModule=spatial/eo-explorer-app/app/main.py)
+
+One-click deploy: the badge above opens the Streamlit Community Cloud dialog
+pre-filled with this repo, the `main` branch, and the main file path
+`spatial/eo-explorer-app/app/main.py`. Open **Advanced settings** and set
+**Python version 3.12** before clicking Deploy (`eo-monitor` needs Python < 3.13).
+
 A **shippable, interactive Earth-observation web app**. Draw an area of interest
 on the map, pick a date and a spectral index, and the app pulls **live
 Sentinel-2 L2A** imagery from a public STAC catalogue and renders the index on
@@ -173,8 +180,10 @@ Deployment is a manual step. The deploy manifest (`app/requirements.txt`) alread
 installs `eo-monitor` from this repo, so there is no separate publish step. Pick
 one host:
 
-- **Streamlit Community Cloud.** Point it at this repo with main file path
-  `spatial/eo-explorer-app/app/main.py`, and set Python 3.12 in Advanced settings.
+- **Streamlit Community Cloud.** Use the **Open in Streamlit** badge at the top
+  (it pre-fills repo, branch, and main file path), or point it at this repo with
+  main file path `spatial/eo-explorer-app/app/main.py`. Set Python 3.12 in
+  Advanced settings.
 - **Hugging Face Spaces.** Create a Streamlit Space, push this repo, and set
   `app_file: app/main.py` in the Space README front matter.
 - **Fly.io.** `fly launch` with the provided `Dockerfile`, which installs the
