@@ -174,7 +174,7 @@ installs `eo-monitor` from this repo, so there is no separate publish step. Pick
 one host:
 
 - **Streamlit Community Cloud.** Point it at this repo with main file path
-  `eo-explorer-app/app/main.py`, and set Python 3.12 in Advanced settings.
+  `spatial/eo-explorer-app/app/main.py`, and set Python 3.12 in Advanced settings.
 - **Hugging Face Spaces.** Create a Streamlit Space, push this repo, and set
   `app_file: app/main.py` in the Space README front matter.
 - **Fly.io.** `fly launch` with the provided `Dockerfile`, which installs the

@@ -197,10 +197,10 @@ step to publish it.
 3. Fill in the dialog:
    - Repository: `mbongowo/Data-science-Portfolio`
    - Branch: `main`
-   - Main file path: `eo-explorer-app/app/main.py`
+   - Main file path: `spatial/eo-explorer-app/app/main.py`
 4. Open **Advanced settings** and set **Python version** to `3.12`. This matters:
    `eo-monitor` requires Python below 3.13, so the default may fail to install.
-5. Click **Deploy**. Cloud finds `eo-explorer-app/app/requirements.txt` (it
+5. Click **Deploy**. Cloud finds `spatial/eo-explorer-app/app/requirements.txt` (it
    searches the entrypoint directory first), installs the dependencies including
    `eo-monitor` from git, and reads `.streamlit/config.toml`. The first build is
    slow because of the geospatial wheels; later builds reuse the cache.
