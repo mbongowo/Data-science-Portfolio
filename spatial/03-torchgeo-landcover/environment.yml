@@ -1,0 +1,27 @@
+# Conda environment for the full TorchGeo training path (EuroSAT ResNet fine-tune
+# + notebook). The pure-numpy core and tests need only numpy/pandas/pyyaml, but
+# this env resolves the whole torch + geospatial stack from conda-forge, which
+# handles GDAL/GEOS/PROJ and the CUDA build of torch more reliably than pip.
+#
+#   conda env create -f environment.yml
+#   conda activate torchgeo-landcover
+name: torchgeo-landcover
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10,<3.13
+  - numpy>=1.24
+  - pandas>=2.0
+  - pyyaml>=6.0
+  - pytorch>=2.0
+  - torchvision>=0.15
+  - matplotlib>=3.7
+  - scikit-learn>=1.3
+  - jupyterlab>=4.0
+  - pytest>=8.0
+  - ruff>=0.6
+  - pip
+  - pip:
+      # torchgeo (datasets / samplers / pretrained weights) is most reliably
+      # installed from PyPI on top of the conda-forge torch build.
+      - torchgeo>=0.6

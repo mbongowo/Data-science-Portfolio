@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "torchgeo-landcover"
+version = "0.1.0"
+description = "Land-cover patch classification: a pure-numpy softmax baseline + metrics suite + a TorchGeo pretrained-vs-scratch comparison."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+requires-python = ">=3.10,<3.13"
+keywords = ["geospatial", "land-cover", "classification", "torchgeo", "eurosat", "transfer-learning"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core runtime. The tested core needs only numpy; the heavy training extras live
+# in the optional "full" group and in requirements.txt / environment.yml.
+dependencies = [
+  "numpy",
+  "pandas",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+full = [
+  "torch",
+  "torchvision",
+  "torchgeo",
+  "matplotlib",
+  "scikit-learn",
+  "jupyterlab",
+]
+dev = [
+  "pytest",
+  "ruff",
+]
+
+[project.scripts]
+lcnet = "lcnet.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/spatial/03-torchgeo-landcover"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lcnet"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+# Notebooks are illustrative GPU/Colab code (not executed in CI); skip lint.
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "PLC"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["src"]

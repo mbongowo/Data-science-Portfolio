@@ -1,0 +1,26 @@
+# The tested core (src/lcnet/metrics.py, classifier.py, data.py, demo.py) and the
+# whole test suite need ONLY the three packages in the first group below. The
+# "full training" group is for the real TorchGeo ResNet fine-tune on EuroSAT and
+# the notebook, which need a GPU / Colab; prefer the conda env (environment.yml)
+# for the torch + geospatial stack.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+# --- Core + tests (numpy / pandas / pyyaml only) ---
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# --- Full training (heavy; GPU/Colab; not needed for the core or tests) ---
+torch>=2.0
+torchvision>=0.15
+torchgeo>=0.6
+matplotlib>=3.7
+scikit-learn>=1.3
+jupyterlab>=4.0
+
+# --- Dev / CI ---
+pytest>=8.0
+ruff>=0.6

@@ -1,0 +1,54 @@
+# Configuration for the real TorchGeo ResNet18 fine-tune on EuroSAT.
+#
+# This file drives the heavy training path (lcnet.train / `lcnet train`,
+# `lcnet compare`) and the Colab/GPU notebook. The dependency-free `demo`
+# (`python -m lcnet.cli demo`) IGNORES this file entirely: it synthesises its
+# own EuroSAT-like dataset and fixed signatures so it runs with numpy alone.
+
+# --------------------------------------------------------------------------- #
+# Dataset
+# --------------------------------------------------------------------------- #
+dataset:
+  name: "EuroSAT"          # Sentinel-2 land-cover patches, via microsoft/torchgeo
+  data_root: "data/eurosat"
+  # The EuroSAT 10-class taxonomy. Swap for a Cameroon-relevant land-cover set
+  # (e.g. forest / cocoa-agroforest / savanna / cropland / built-up / water /
+  # bare) when pointing the notebook at a local patch set — see the README's
+  # "Use your own dataset / classes" section.
+  classes:
+    - AnnualCrop
+    - Forest
+    - HerbaceousVegetation
+    - Highway
+    - Industrial
+    - Pasture
+    - PermanentCrop
+    - Residential
+    - River
+    - SeaLake
+  # RGB keeps the model compatible with the ImageNet-pretrained ResNet stem.
+  # EuroSAT also ships all 13 Sentinel-2 bands ("MS"); using them needs a wider
+  # first convolution.
+  bands: ["B04", "B03", "B02"]   # red, green, blue
+
+# --------------------------------------------------------------------------- #
+# Model + training
+# --------------------------------------------------------------------------- #
+model:
+  arch: "resnet18"
+  pretrained: true          # ImageNet weights; set false for the from-scratch arm
+
+train:
+  epochs: 10
+  lr: 0.001
+  batch_size: 64
+  seed: 0
+
+# --------------------------------------------------------------------------- #
+# Split (held-out evaluation)
+# --------------------------------------------------------------------------- #
+# The numpy demo uses a three-way stratified split; the EuroSAT fine-tune uses a
+# train/test split (val carved from train if you add early stopping).
+split:
+  fractions: [0.6, 0.2, 0.2]   # train / val / test
+  seed: 0
