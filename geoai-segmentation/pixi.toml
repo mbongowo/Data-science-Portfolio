@@ -40,6 +40,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tasks]
+demo = "python -m geoseg.demo"
 prepare-synthetic = "python scripts/prepare_data.py --synthetic --out data/spacenet"
 train = "python -m geoseg.train"
 smoke = "python -m geoseg.train trainer.fast_dev_run=true data.batch_size=2 data.num_workers=0"

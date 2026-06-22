@@ -71,7 +71,9 @@ def load_cube(
 
     # Rename asset keys to logical band names for downstream index math, and
     # normalise the SCL asset name to the upper-case "SCL" used elsewhere.
-    rename = {asset: logical for asset, logical in _reverse_band_lookup().items() if asset in masked}
+    rename = {
+        asset: logical for asset, logical in _reverse_band_lookup().items() if asset in masked
+    }
     if "scl" in masked:
         rename["scl"] = "SCL"
     masked = masked.rename(rename)

@@ -52,6 +52,12 @@ INDEX_BANDS: dict[str, tuple[str, ...]] = {
 #: How many days either side of the chosen date to search for a scene.
 DEFAULT_DATE_WINDOW_DAYS = 10
 
+#: Scene Classification Layer values treated as invalid and masked to NaN:
+#: 0 no-data, 1 saturated/defective, 3 cloud shadow, 6 water, 8/9 cloud
+#: medium/high probability, 10 thin cirrus, 11 snow/ice. Masking these keeps a
+#: normalised-difference index from blowing up on near-zero reflectance pixels.
+SCL_INVALID_CLASSES: tuple[int, ...] = (0, 1, 3, 6, 8, 9, 10, 11)
+
 
 # --------------------------------------------------------------------------- #
 # Pure helpers (no third-party deps -- unit tested)
@@ -294,6 +300,100 @@ def validate_aoi(
     return AOIValidation(True, area, f"Area looks good (~{area:,.0f} km^2).")
 
 
+def bbox_center(bbox: Sequence[float]) -> tuple[float, float]:
+    """Return the ``(lon, lat)`` centre of a lon/lat bbox.
+
+    Parameters
+    ----------
+    bbox : sequence of float
+        ``(min_lon, min_lat, max_lon, max_lat)`` in degrees.
+
+    Returns
+    -------
+    tuple of float
+        The arithmetic midpoint ``((min_lon + max_lon) / 2, (min_lat +
+        max_lat) / 2)``. This is the planar centre in lon/lat space, which is
+        what a map widget wants for its initial view; it is not the great-circle
+        centroid, and it is meaningless across the antimeridian (reject those
+        first with :func:`crosses_antimeridian`).
+    """
+    min_lon, min_lat, max_lon, max_lat = (float(v) for v in bbox)
+    return ((min_lon + max_lon) / 2.0, (min_lat + max_lat) / 2.0)
+
+
+def bbox_aspect_ratio(bbox: Sequence[float]) -> float:
+    """Return the width-to-height ratio of a bbox in real (km) units.
+
+    The ratio is corrected for the convergence of meridians: a one-degree span
+    of longitude is narrower than a one-degree span of latitude away from the
+    equator, by a factor of ``cos(latitude)``. Using degree spans directly would
+    overstate the width near the poles, so the longitude span is scaled by the
+    cosine of the mean latitude.
+
+    Parameters
+    ----------
+    bbox : sequence of float
+        ``(min_lon, min_lat, max_lon, max_lat)`` in degrees.
+
+    Returns
+    -------
+    float
+        ``width_km / height_km``. Greater than 1 for a landscape box, less than
+        1 for a portrait box.
+
+    Raises
+    ------
+    ValueError
+        If the box has zero height (``max_lat == min_lat``), which would divide
+        by zero.
+    """
+    min_lon, min_lat, max_lon, max_lat = (float(v) for v in bbox)
+    height_deg = max_lat - min_lat
+    if height_deg == 0.0:
+        raise ValueError("bbox has zero height; aspect ratio is undefined")
+    mean_lat_rad = math.radians((min_lat + max_lat) / 2.0)
+    width_deg = (max_lon - min_lon) * math.cos(mean_lat_rad)
+    return abs(width_deg / height_deg)
+
+
+def suggest_zoom(bbox: Sequence[float], tile_px: int = 256) -> int:
+    """Suggest a web-Mercator zoom level that fits ``bbox`` in one tile.
+
+    Web Mercator (the scheme slippy maps use) splits the world into
+    ``2**zoom`` tiles of ``tile_px`` pixels along each axis at every zoom level.
+    The whole 360 deg of longitude therefore spans ``tile_px * 2**zoom`` pixels,
+    and a bbox whose longitude span is ``dlon`` degrees occupies
+    ``dlon / 360 * tile_px * 2**zoom`` pixels. We pick the largest integer zoom
+    at which that pixel span still fits inside one ``tile_px`` tile, i.e. the
+    largest ``z`` with ``dlon / 360 * 2**z <= 1``. Solving gives
+    ``z = floor(log2(360 / dlon))``.
+
+    Only the longitude span is used (matching how Leaflet/folium size the view to
+    width); latitude is ignored. A smaller bbox yields a larger zoom, so the
+    result is monotonically non-increasing in ``dlon``.
+
+    Parameters
+    ----------
+    bbox : sequence of float
+        ``(min_lon, min_lat, max_lon, max_lat)`` in degrees.
+    tile_px : int, optional
+        Tile size in pixels. Accepted for API symmetry; it cancels out of the
+        fit condition, so it does not change the result.
+
+    Returns
+    -------
+    int
+        A zoom level clamped to the usual slippy-map range ``[0, 22]``. A
+        zero-width bbox returns the maximum zoom (22).
+    """
+    min_lon, _min_lat, max_lon, _max_lat = (float(v) for v in bbox)
+    dlon = abs(max_lon - min_lon)
+    if dlon <= 0.0:
+        return 22
+    zoom = math.floor(math.log2(360.0 / dlon))
+    return max(0, min(22, int(zoom)))
+
+
 def cache_key(bbox: Sequence[float], date: str, index: str) -> str:
     """Build a deterministic cache key for an (AOI, date, index) request.
 
@@ -424,8 +524,10 @@ def find_scene(
 def load_scene(item, bbox: Sequence[float], index: str):
     """Load the bands needed for ``index`` from ``item``, clipped to ``bbox``.
 
-    Returns an :class:`xarray.Dataset` with one variable per required band,
-    reprojected/clipped to the AOI. Network access is required.
+    Loads the index bands plus the Scene Classification Layer, masks cloud /
+    shadow / water / no-data pixels to NaN (see :data:`SCL_INVALID_CLASSES`), and
+    drops the SCL band. Returns an :class:`xarray.Dataset` with one variable per
+    required band, reprojected and clipped to the AOI. Network access is required.
     """
     import odc.stac  # noqa: F401  (registers the .stac accessor / load fn)
     from odc.stac import load as odc_load
@@ -435,7 +537,7 @@ def load_scene(item, bbox: Sequence[float], index: str):
 
     dataset = odc_load(
         [item],
-        bands=bands,
+        bands=(*bands, "scl"),
         bbox=(min_lon, min_lat, max_lon, max_lat),
         chunks={},  # dask-backed; lazy until needed
         resolution=10,
@@ -444,6 +546,13 @@ def load_scene(item, bbox: Sequence[float], index: str):
     # Collapse the (length-1) time dimension if present.
     if "time" in dataset.dims:
         dataset = dataset.isel(time=0)
+
+    # Mask invalid pixels using the Scene Classification Layer, then drop it.
+    if "scl" in dataset:
+        valid = ~dataset["scl"].isin(list(SCL_INVALID_CLASSES))
+        for band in bands:
+            dataset[band] = dataset[band].where(valid)
+        dataset = dataset.drop_vars("scl")
     return dataset
 
 

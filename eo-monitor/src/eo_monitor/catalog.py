@@ -70,9 +70,7 @@ def search_items(
     items = list(search.items())
 
     # Defensive client-side re-filter & sort in case the server ignores hints.
-    items = [
-        it for it in items if (it.properties.get("eo:cloud_cover", 100.0) < cloud_cover_max)
-    ]
+    items = [it for it in items if (it.properties.get("eo:cloud_cover", 100.0) < cloud_cover_max)]
     items.sort(key=lambda it: it.properties.get("datetime", ""))
     if len(items) > max_items:
         items = items[:max_items]

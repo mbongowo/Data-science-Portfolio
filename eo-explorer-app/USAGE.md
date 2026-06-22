@@ -64,6 +64,23 @@ to a local normalised-difference implementation that the tests confirm is
 numerically identical. The app, however, refuses to compute an index without
 the real package and tells you so.
 
+## Run the offline demo
+
+Before (or without) any of the satellite stack, you can run the pure core with
+no network:
+
+```bash
+make demo          # or: python -m app.demo  /  pixi run demo
+```
+
+It validates a small synthetic AOI, synthesises one scene of bands with a
+seeded generator, computes NDVI / NDWI / NDMI, prints the metrics, and writes
+`outputs/summary.json` (plus `outputs/ndvi.png` when matplotlib and Pillow are
+present). This is a synthetic scene, not satellite imagery, so it exercises the
+maths and the plumbing rather than the data pipeline. The run is deterministic;
+`tests/test_demo.py` pins the numbers. `notebooks/01_walkthrough.ipynb` walks
+through the same demo with commentary.
+
 ## Run locally
 
 ```bash

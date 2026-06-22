@@ -29,6 +29,38 @@ A U-Net (ResNet-34 encoder, Dice + BCE loss) trained on SpaceNet building footpr
 
 ---
 
+## Run it now (no GPU, no data, < 1 second)
+
+The metric core is pure-numpy and tested, so you can see real numbers come out
+of it without training anything. `geoseg.demo` synthesises a small seeded
+4-class label map and a deliberately noisy prediction (15% of pixels flipped),
+then drives the real metric functions over them and writes
+`outputs/{per_class_iou.csv, confusion.csv, summary.json}`.
+
+```bash
+# Reproduce:
+pixi run demo            # or: python -m geoseg.demo  (or: make demo)
+```
+
+Output for `seed=0` (small seeded synthetic masks — these are demo plumbing
+numbers, not a model result):
+
+| Metric                         | Value  |
+|--------------------------------|--------|
+| mean IoU (macro, 4 classes)    | 0.4778 |
+| pixel accuracy                 | 0.8462 |
+| frequency-weighted IoU         | 0.7891 |
+| Cohen's kappa                  | 0.5215 |
+| foreground (class 1) F1        | 0.5339 |
+
+Per-class IoU: `0.842, 0.364, 0.280, 0.424` (background is the large, easy
+class). The same numbers fall out of `tests/test_demo.py`, which pins them.
+
+A guided version with the confusion matrix and a tiling round-trip is in
+[`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb).
+
+---
+
 ## Why this is reproducible
 
 | Concern            | How it's handled                                                        |
@@ -93,21 +125,42 @@ with matching filenames.
 
 ---
 
+## Metric & tiling capabilities (pure-numpy, tested)
+
+Everything in this list runs without torch and is covered by hand-derived
+known-answer tests:
+
+- **Binary masks:** IoU, F1/Dice, precision, recall, batched mean IoU, with
+  probability thresholding.
+- **Multi-class label maps:** per-class IoU, macro mean IoU, dense `N×N`
+  confusion matrix, per-class precision/recall from that matrix.
+- **Aggregate scores:** pixel accuracy, frequency-weighted IoU, Cohen's kappa
+  (chance-corrected agreement).
+- **Void handling:** every metric accepts `ignore_index` to drop unlabelled
+  pixels, with a defined empty-mask convention (empty prediction matching empty
+  target scores 1.0).
+- **Tiling:** `tile_indices(h, w, tile, overlap)` enumerates sliding windows that
+  cover an image (edge windows snap in-bounds), and `stitch` reassembles per-tile
+  arrays, averaging overlaps — an exact round-trip at `overlap=0`.
+
 ## Project layout
 
 ```
 geoai-segmentation/
 ├── conf/                 # Hydra configs (config.yaml -> model/unet + data/spacenet)
 ├── src/geoseg/
-│   ├── metrics.py        # pure-numpy IoU / F1 / precision / recall + multiclass IoU (no torch needed)
+│   ├── metrics.py        # pure-numpy IoU / F1 / precision / recall, confusion matrix, pixel acc, FW-IoU, kappa
+│   ├── tiling.py         # pure-numpy sliding-window tile_indices + stitch (overlap averaging)
+│   ├── demo.py           # GPU-free demo: synth masks -> real metrics -> outputs/ (python -m geoseg.demo)
 │   ├── seed.py           # seed-everything
-│   ├── datamodule.py     # tiling, deterministic splits, augmentation, normalise
+│   ├── datamodule.py     # tiling grid, deterministic splits, augmentation, normalise
 │   ├── model.py          # Lightning module: SMP U-Net + Dice/BCE, logs loss+IoU
 │   ├── train.py          # Hydra entry; logs resolved config + git SHA to MLflow
 │   ├── evaluate.py       # IoU/F1 on test split -> metrics.json + panel.png
 │   └── infer.py          # typer CLI: predict mask, write georeferenced GeoTIFF
+├── notebooks/01_walkthrough.ipynb   # runs the demo + confusion matrix + tiling round-trip
 ├── scripts/prepare_data.py
-├── tests/                # pytest; metrics/datamodule/seed/evaluate tests pass with only numpy
+├── tests/                # pytest; metrics/tiling/demo/datamodule/seed/evaluate tests pass with only numpy
 └── .github/workflows/ci.yml
 ```
 

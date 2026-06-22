@@ -35,3 +35,6 @@ Thumbs.db
 
 # Allow tiny committed test fixtures even though *.tif is ignored above
 !tests/fixtures/**
+
+# Notebook-run demo artifacts
+notebooks/outputs/

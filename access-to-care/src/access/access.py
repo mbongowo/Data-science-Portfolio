@@ -62,6 +62,56 @@ def nearest_facility_times(
     return dist
 
 
+def assign_nearest_source(
+    adjacency: dict[Hashable, list[tuple[Hashable, float]]],
+    sources: list[Hashable],
+) -> tuple[dict[Hashable, float], dict[Hashable, Hashable]]:
+    """Multi-source Dijkstra returning both the cost and the nearest source.
+
+    Extends :func:`nearest_facility_times` to also track *which* source each node
+    is closest to. The source label propagates along the relaxed edge, so every
+    reachable node carries the seed it was reached from on the shortest path.
+    This is what :func:`access.metrics.facility_load` needs to attribute demand
+    to facilities.
+
+    Args:
+        adjacency: mapping ``node -> [(neighbour, weight), ...]`` with
+            non-negative weights.
+        sources: facility nodes, each seeded at cost 0.
+
+    Returns:
+        ``(dist, nearest)`` where ``dist`` maps ``node -> cost`` (as in
+        :func:`nearest_facility_times`) and ``nearest`` maps ``node -> source``
+        for every reachable node. Unreachable nodes appear in neither dict. Ties
+        resolve to the source pushed first (stable insertion order of ``sources``).
+    """
+    dist: dict[Hashable, float] = {}
+    nearest: dict[Hashable, Hashable] = {}
+    heap: list[tuple[float, int, Hashable]] = []
+    counter = 0
+    for src in sources:
+        if src not in dist:
+            dist[src] = 0.0
+            nearest[src] = src
+            heapq.heappush(heap, (0.0, counter, src))
+            counter += 1
+
+    while heap:
+        cost, _, node = heapq.heappop(heap)
+        if cost > dist.get(node, math.inf):
+            continue
+        for neighbour, weight in adjacency.get(node, ()):  # type: ignore[arg-type]
+            if weight < 0:
+                raise ValueError("negative edge weights are not allowed")
+            new_cost = cost + weight
+            if new_cost < dist.get(neighbour, math.inf):
+                dist[neighbour] = new_cost
+                nearest[neighbour] = nearest[node]
+                heapq.heappush(heap, (new_cost, counter, neighbour))
+                counter += 1
+    return dist, nearest
+
+
 def graph_to_adjacency(
     graph, weight: str = "travel_time"
 ) -> dict[Hashable, list[tuple[Hashable, float]]]:

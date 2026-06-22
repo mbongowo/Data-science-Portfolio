@@ -12,13 +12,20 @@ dependency and is always importable and testable.
 from __future__ import annotations
 
 from hotspots.esda import (
+    benjamini_hochberg,
+    bivariate_moran_dense,
     expected_morans_i,
     gearys_c_dense,
     getis_ord_g_star_dense,
+    join_counts_dense,
     lisa_quadrants,
     local_moran_dense,
+    moran_scatter_slope,
     morans_i_dense,
+    rook_weights,
+    row_standardize,
 )
+from hotspots.demo import run_demo
 
 __all__ = [
     "morans_i_dense",
@@ -27,6 +34,13 @@ __all__ = [
     "local_moran_dense",
     "lisa_quadrants",
     "getis_ord_g_star_dense",
+    "join_counts_dense",
+    "bivariate_moran_dense",
+    "moran_scatter_slope",
+    "benjamini_hochberg",
+    "rook_weights",
+    "row_standardize",
+    "run_demo",
     "__version__",
 ]
 

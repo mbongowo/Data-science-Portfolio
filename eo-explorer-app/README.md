@@ -41,6 +41,53 @@ oversized AOIs are rejected by `validate_aoi`, empty search results and
 out-of-range dates each produce a distinct warning, and STAC queries/loads are
 cached (`st.cache_data`) keyed by **AOI bbox + date + index**.
 
+## Try it offline (no network, no STAC)
+
+You do not need the Sentinel-2 stack or an internet connection to see the core
+working. `app/demo.py` validates a small synthetic AOI, synthesises one scene of
+band arrays with a seeded generator, computes the indices with the same
+functions the app uses, and reports real numbers:
+
+```bash
+make demo          # or: python -m app.demo  /  pixi run demo
+```
+
+This is a **synthetic scene** — the bands are generated, not satellite imagery —
+so the numbers exercise the maths and the plumbing, not the data pipeline. With
+`seed=0` the run is deterministic and produces:
+
+| metric | value |
+| --- | --- |
+| AOI bbox | `(10.0, 50.0, 10.1, 50.1)` |
+| AOI area | `79.04 km²` (accepted by `validate_aoi`) |
+| NDVI mean | `0.6135` |
+| NDVI valid fraction | `1.0` |
+| cache key | `eo-explorer:8efeec1e807ae802` |
+
+It writes `outputs/summary.json` (and `outputs/ndvi.png` when matplotlib and
+Pillow are installed; the demo skips the image cleanly when they are not).
+`tests/test_demo.py` pins these numbers so a change to the maths is caught.
+
+**Reproduce:** `make demo`
+
+A short walkthrough notebook, `notebooks/01_walkthrough.ipynb`, runs the same
+demo and shows the AOI validation, index stats, the robust percentile stretch,
+and a guarded colourised preview.
+
+### What the pure core can do without any heavy dependency
+
+- Turn a drawn GeoJSON (Polygon, MultiPolygon, Feature, FeatureCollection,
+  GeometryCollection) into an AOI bbox.
+- Validate an AOI: range, antimeridian, inversion, zero-extent, and area-cap
+  checks, each with a specific message.
+- Geometry helpers for map setup: `bbox_center`, `bbox_aspect_ratio` (cosine-
+  corrected), and `suggest_zoom` (web-Mercator fit).
+- Compute NDVI / NDWI / NDMI and summary stats (numpy fallbacks that match the
+  `eo-monitor` formulas).
+- Robust display helpers: `percentile_stretch`, `histogram`, and `downsample`,
+  all NaN-aware.
+- Deterministic, cross-process cache keys for `(AOI, date, index)`.
+
 ## How it reuses `eo-monitor`
 
 `app/render.py` imports the index functions directly from the flagship package:
@@ -143,9 +190,11 @@ eo-explorer-app/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py      # Streamlit entry: folium map + st_folium draw capture + sidebar
-│   ├── stac.py      # Earth Search query + load; pure AOI/cache helpers
-│   └── render.py    # compute index via eo-monitor + folium overlay + legend
-├── tests/test_smoke.py
+│   ├── stac.py      # Earth Search query + load; pure AOI/cache/geometry helpers
+│   ├── render.py    # compute index via eo-monitor + folium overlay + legend
+│   └── demo.py      # offline, no-network demo (python -m app.demo)
+├── notebooks/01_walkthrough.ipynb  # runs the offline demo end to end
+├── tests/test_smoke.py · tests/test_demo.py
 ├── USAGE.md         # install, UI walkthrough, caching, deployment steps
 ├── .streamlit/config.toml
 ├── .github/workflows/ci.yml

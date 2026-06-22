@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from eo_monitor.anomaly import anomaly_cube, baseline_statistics, zscore_anomaly
+from eo_monitor.anomaly import (
+    anomaly_cube,
+    anomaly_fraction,
+    baseline_statistics,
+    classify_anomaly,
+    robust_zscore,
+    zscore_anomaly,
+)
 from eo_monitor.indices import ndvi
 
 
@@ -96,3 +103,71 @@ def test_indices_then_anomaly_chained() -> None:
     z = anomaly_cube(target, ndvi_base)
     assert np.isclose(z[0, 0], 0.0, atol=1e-12)
     assert np.isnan(z[0, 1])
+
+
+def test_robust_zscore_known_values() -> None:
+    # Baseline pixel A: [1, 2, 4, 100] -> median 3,
+    #   |x - 3| = [2, 1, 1, 97] -> median 1.5, MAD = 1.4826 * 1.5 = 2.2239.
+    # Baseline pixel B: constant 5 -> MAD 0 -> z NaN.
+    baseline = np.array(
+        [
+            [1.0, 5.0],
+            [2.0, 5.0],
+            [4.0, 5.0],
+            [100.0, 5.0],
+        ]
+    )
+    mad_a = 1.4826 * 1.5
+    # value 3 -> z 0 ; value 3 + mad_a -> z 1 for pixel A.
+    value = np.array([3.0 + mad_a, 7.0])
+    z = robust_zscore(value, baseline)
+    assert np.isclose(z[0], 1.0)
+    assert np.isnan(z[1])
+
+
+def test_robust_zscore_resists_outlier() -> None:
+    # A single huge outlier barely moves the median/MAD, unlike mean/std.
+    baseline = np.array([[1.0], [2.0], [3.0], [4.0], [1000.0]])
+    # median = 3, |x-3| = [2,1,0,1,997] -> median 1 -> MAD = 1.4826.
+    z = robust_zscore(np.array([3.0 + 1.4826]), baseline)
+    np.testing.assert_allclose(z, np.array([1.0]))
+
+
+def test_robust_zscore_zero_mad_is_nan() -> None:
+    baseline = np.array([[7.0], [7.0], [7.0]])
+    z = robust_zscore(np.array([9.0]), baseline)
+    assert np.isnan(z).all()
+
+
+def test_robust_zscore_ignores_nan() -> None:
+    # NaN baseline observation is skipped in median/MAD.
+    baseline = np.array([[1.0], [np.nan], [3.0], [5.0]])
+    # finite [1,3,5] -> median 3, |x-3| = [2,0,2] -> median 2 -> MAD = 2.9652.
+    z = robust_zscore(np.array([3.0 + 2.9652]), baseline)
+    np.testing.assert_allclose(z, np.array([1.0]), atol=1e-4)
+
+
+def test_anomaly_fraction_known() -> None:
+    # 5 finite pixels, 2 exceed |z| > 2 (-3 and 4); one NaN excluded.
+    z = np.array([0.5, -3.0, 1.0, 4.0, np.nan, 2.0])
+    # |z| > 2 strictly: -3 and 4 qualify; 2.0 does not (not strictly > 2).
+    assert anomaly_fraction(z, threshold=2.0) == 2 / 5
+
+
+def test_anomaly_fraction_all_nan_is_zero() -> None:
+    z = np.array([np.nan, np.nan])
+    assert anomaly_fraction(z) == 0.0
+
+
+def test_classify_anomaly_known() -> None:
+    z = np.array([-3.0, -1.0, 0.0, 1.5, 2.5, np.nan])
+    # < -2 -> -1 ; within [-2, 2] -> 0 ; > 2 -> +1 ; NaN -> 0.
+    expected = np.array([-1, 0, 0, 0, 1, 0], dtype="int8")
+    np.testing.assert_array_equal(classify_anomaly(z, threshold=2.0), expected)
+    assert classify_anomaly(z).dtype == np.int8
+
+
+def test_classify_anomaly_empty() -> None:
+    out = classify_anomaly(np.array([]))
+    assert out.shape == (0,)
+    assert out.dtype == np.int8

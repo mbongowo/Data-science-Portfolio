@@ -197,7 +197,7 @@ def test_fallback_index_math_matches_formula():
     red = np.array([0.1, 0.2])
     nir = np.array([0.5, 0.4])
     expected = (nir - red) / (nir + red)
-    got = render._ndvi(red, nir)
+    got = render._ndvi(nir, red)
     assert np.allclose(got, expected)
 
 
@@ -487,3 +487,138 @@ def test_colorize_clips_out_of_range_values():
     arr = np.array([[-5.0, 0.0]])  # -5 clamps to vmin (0.0)
     rgba = render.colorize(arr, vmin=0.0, vmax=1.0, colormap="viridis")
     assert tuple(int(v) for v in rgba[0, 0]) == tuple(int(v) for v in rgba[0, 1])
+
+
+# --------------------------------------------------------------------------- #
+# stac geometry helpers: bbox_center / bbox_aspect_ratio / suggest_zoom
+# --------------------------------------------------------------------------- #
+
+
+def test_bbox_center_known_box():
+    # Midpoint of (0,0,2,1) is the arithmetic mean of each axis.
+    assert stac.bbox_center((0.0, 0.0, 2.0, 1.0)) == (1.0, 0.5)
+
+
+def test_bbox_center_negative_box():
+    assert stac.bbox_center((-10.0, -4.0, -6.0, 2.0)) == (-8.0, -1.0)
+
+
+def test_bbox_aspect_ratio_at_equator():
+    # At the equator cos(lat)~1, so a 2deg x 1deg box has aspect ~2.0.
+    ratio = stac.bbox_aspect_ratio((0.0, 0.0, 2.0, 1.0))
+    assert ratio == pytest.approx(2.0, rel=1e-3)
+
+
+def test_bbox_aspect_ratio_shrinks_with_latitude():
+    # The same degree box is "narrower" in km the further north it sits, so the
+    # cosine correction makes the width/height ratio fall.
+    equator = stac.bbox_aspect_ratio((0.0, 0.0, 2.0, 1.0))
+    north = stac.bbox_aspect_ratio((0.0, 60.0, 2.0, 61.0))
+    assert north < equator
+    # cos(60.5deg) ~ 0.4924, times the 2.0 equator ratio.
+    assert north == pytest.approx(2.0 * math.cos(math.radians(60.5)), rel=1e-3)
+
+
+def test_bbox_aspect_ratio_rejects_zero_height():
+    with pytest.raises(ValueError):
+        stac.bbox_aspect_ratio((0.0, 5.0, 2.0, 5.0))
+
+
+def test_suggest_zoom_known_values():
+    # zoom = floor(log2(360 / dlon)).
+    assert stac.suggest_zoom((-180.0, 0.0, 180.0, 0.0)) == 0  # 360deg -> log2(1)=0
+    assert stac.suggest_zoom((0.0, 0.0, 180.0, 0.0)) == 1  # 180deg -> log2(2)=1
+    assert stac.suggest_zoom((0.0, 0.0, 90.0, 0.0)) == 2  # 90deg -> log2(4)=2
+
+
+def test_suggest_zoom_is_monotonic():
+    # A smaller bbox must zoom in at least as far as a larger one.
+    big = stac.suggest_zoom((0.0, 50.0, 20.0, 50.1))
+    medium = stac.suggest_zoom((0.0, 50.0, 1.0, 50.1))
+    small = stac.suggest_zoom((0.0, 50.0, 0.1, 50.1))
+    assert big <= medium <= small
+
+
+def test_suggest_zoom_zero_width_returns_max():
+    assert stac.suggest_zoom((10.0, 50.0, 10.0, 50.1)) == 22
+
+
+# --------------------------------------------------------------------------- #
+# render numpy helpers: percentile_stretch / histogram / downsample
+# --------------------------------------------------------------------------- #
+
+
+def test_percentile_stretch_known_vector():
+    np = pytest.importorskip("numpy")
+    # On 0..100 the 2nd and 98th percentiles are 2.0 and 98.0 by linear interp.
+    vmin, vmax = render.percentile_stretch(np.arange(0, 101, dtype="float64"))
+    assert vmin == pytest.approx(2.0)
+    assert vmax == pytest.approx(98.0)
+
+
+def test_percentile_stretch_ignores_nan():
+    np = pytest.importorskip("numpy")
+    arr = np.array([np.nan, 0.0, 50.0, 100.0, np.nan])
+    vmin, vmax = render.percentile_stretch(arr, lo=0, hi=100)
+    assert vmin == pytest.approx(0.0)
+    assert vmax == pytest.approx(100.0)
+
+
+def test_percentile_stretch_all_nan_returns_nan():
+    np = pytest.importorskip("numpy")
+    vmin, vmax = render.percentile_stretch(np.full(5, np.nan))
+    assert math.isnan(vmin)
+    assert math.isnan(vmax)
+
+
+def test_percentile_stretch_rejects_bad_range():
+    with pytest.raises(ValueError):
+        render.percentile_stretch([0.0, 1.0], lo=98, hi=2)
+
+
+def test_histogram_known_counts():
+    np = pytest.importorskip("numpy")
+    # Edges [0, 1.5, 3.5]: {0,1} fall in the first bin, {2,3} in the second.
+    counts, edges = render.histogram(np.array([0.0, 1.0, 2.0, 3.0, np.nan]), bins=[0, 1.5, 3.5])
+    assert counts.tolist() == [2, 2]
+    assert edges.tolist() == [0.0, 1.5, 3.5]
+
+
+def test_histogram_all_nan_is_empty():
+    np = pytest.importorskip("numpy")
+    counts, _edges = render.histogram(np.full(4, np.nan), bins=4)
+    assert counts.sum() == 0
+
+
+def test_downsample_shape_and_values():
+    np = pytest.importorskip("numpy")
+    arr = np.arange(100).reshape(10, 10)
+    out = render.downsample(arr, max_dim=5)
+    assert max(out.shape) <= 5
+    # step = ceil(10/5) = 2, so out[0,0] is arr[0,0] and out[1,0] is arr[2,0].
+    assert out[0, 0] == 0
+    assert out[1, 0] == 20
+
+
+def test_downsample_leaves_small_array_unchanged():
+    np = pytest.importorskip("numpy")
+    arr = np.arange(9).reshape(3, 3)
+    out = render.downsample(arr, max_dim=5)
+    assert out.shape == (3, 3)
+    assert np.array_equal(out, arr)
+
+
+def test_downsample_single_pixel():
+    np = pytest.importorskip("numpy")
+    arr = np.array([[42.0]])
+    out = render.downsample(arr, max_dim=1)
+    assert out.shape == (1, 1)
+    assert out[0, 0] == 42.0
+
+
+def test_downsample_rejects_bad_args():
+    np = pytest.importorskip("numpy")
+    with pytest.raises(ValueError):
+        render.downsample(np.zeros((4, 4)), max_dim=0)
+    with pytest.raises(ValueError):
+        render.downsample(np.zeros(4), max_dim=2)  # 1-D not allowed

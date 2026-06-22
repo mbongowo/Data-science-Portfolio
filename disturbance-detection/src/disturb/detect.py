@@ -17,7 +17,13 @@ from typing import Any
 
 import numpy as np
 
-__all__ = ["Breakpoint", "detect_breakpoint", "detect_breakpoints_ruptures"]
+__all__ = [
+    "Breakpoint",
+    "detect_breakpoint",
+    "detect_breakpoints_binseg",
+    "recovery_time",
+    "detect_breakpoints_ruptures",
+]
 
 
 @dataclass
@@ -129,6 +135,153 @@ def detect_breakpoint(
         date=date,
         detected=score >= threshold,
     )
+
+
+def detect_breakpoints_binseg(
+    series: np.ndarray,
+    times: np.ndarray | None = None,
+    max_breaks: int = 3,
+    threshold: float = 1.0,
+    min_segment: int = 3,
+) -> list[Breakpoint]:
+    """Find multiple changepoints by recursive binary segmentation.
+
+    Pure-numpy multiple-changepoint detection built entirely on the existing
+    single-break :func:`detect_breakpoint` CUSUM scan - no ``ruptures``
+    dependency. The algorithm:
+
+    1. Run :func:`detect_breakpoint` on the whole series.
+    2. If the break clears ``threshold``, accept it and recurse independently
+       into the left segment (``[start, idx]``) and the right segment
+       (``[idx + 1, end]``).
+    3. Stop when a segment is too short to hold another break, when no break
+       clears the threshold, or when ``max_breaks`` accepted breaks is reached.
+
+    Parameters
+    ----------
+    series:
+        1-D series (typically a harmonic residual). NaNs are tolerated by the
+        underlying CUSUM scan.
+    times:
+        Optional time axis, used only to attach calendar ``date`` values.
+    max_breaks:
+        Maximum number of breakpoints to return.
+    threshold:
+        Minimum CUSUM score for a candidate to be accepted, passed through to
+        :func:`detect_breakpoint`.
+    min_segment:
+        Minimum samples on each side of a candidate break.
+
+    Returns
+    -------
+    list[Breakpoint]
+        Accepted breakpoints sorted by ascending index. The ``magnitude`` of
+        each is recomputed as ``mean(next segment) - mean(prev segment)`` using
+        the *local* segment boundaries, so adjacent steps do not contaminate
+        one another. Empty if nothing clears the threshold.
+    """
+    y = np.asarray(series, dtype=float).ravel()
+    n = y.size
+    if times is not None:
+        times = np.asarray(times).ravel()
+        if times.size != n:
+            raise ValueError("series and times must have the same length")
+
+    min_len = 2 * min_segment + 1
+    accepted: list[int] = []
+
+    # Work queue of half-open segments [start, end) to scan.
+    stack: list[tuple[int, int]] = [(0, n)]
+    while stack and len(accepted) < max_breaks:
+        start, end = stack.pop()
+        if end - start < min_len:
+            continue
+        bp = detect_breakpoint(
+            y[start:end],
+            times=None,
+            min_segment=min_segment,
+            threshold=threshold,
+        )
+        if not bp.detected:
+            continue
+        idx = start + bp.index  # break sits after global index `idx`
+        accepted.append(idx)
+        # Recurse into the two child segments.
+        stack.append((start, idx + 1))
+        stack.append((idx + 1, end))
+
+    accepted = sorted(accepted)[:max_breaks]
+
+    # Recompute magnitude on the final local segments defined by the breaks.
+    bounds = [0, *[(b + 1) for b in accepted], n]
+    results: list[Breakpoint] = []
+    for k, idx in enumerate(accepted):
+        before = y[bounds[k] : idx + 1]
+        after = y[idx + 1 : bounds[k + 2]]
+        magnitude = float(np.nanmean(after) - np.nanmean(before))
+        date = times[min(idx + 1, n - 1)] if times is not None else None
+        results.append(
+            Breakpoint(
+                index=int(idx),
+                magnitude=magnitude,
+                score=abs(magnitude),
+                date=date,
+                detected=True,
+            )
+        )
+    return results
+
+
+def recovery_time(
+    series: np.ndarray,
+    break_index: int,
+    tolerance: float | None = None,
+) -> int | None:
+    """Samples until the series returns to its pre-break level.
+
+    After a disturbance (a drop), vegetation may recover. This counts how many
+    samples *after* the break the series first comes back to within
+    ``tolerance`` of the pre-break mean level and stays defined.
+
+    Parameters
+    ----------
+    series:
+        1-D series (NDVI-like). NaNs after the break are skipped.
+    break_index:
+        Index *after which* the break occurred (the break sits between
+        ``break_index`` and ``break_index + 1``), matching
+        :attr:`Breakpoint.index`.
+    tolerance:
+        Absolute band around the pre-break mean that counts as "recovered".
+        Defaults to one standard deviation of the pre-break segment (or a small
+        floor if that segment is flat).
+
+    Returns
+    -------
+    int or None
+        Number of samples after the break at which the post-break value first
+        re-enters ``[pre_mean - tol, pre_mean + tol]`` (1-based: 1 means the
+        very next sample). ``None`` if it never recovers within the series, or
+        if there is no post-break data.
+    """
+    y = np.asarray(series, dtype=float).ravel()
+    n = y.size
+    if break_index < 0 or break_index >= n - 1:
+        return None
+
+    before = y[: break_index + 1]
+    pre_mean = float(np.nanmean(before))
+    if tolerance is None:
+        pre_std = float(np.nanstd(before))
+        tolerance = pre_std if np.isfinite(pre_std) and pre_std > 0 else 1e-9
+
+    after = y[break_index + 1 :]
+    for offset, value in enumerate(after, start=1):
+        if not np.isfinite(value):
+            continue
+        if abs(value - pre_mean) <= tolerance:
+            return offset
+    return None
 
 
 def detect_breakpoints_ruptures(

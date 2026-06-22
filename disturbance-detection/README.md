@@ -30,6 +30,58 @@ Event 2020-09-04 (+/-60 d):
 
 (Run the pipeline to populate the maps and the exact numbers; see *How to run*.)
 
+## Reproduce in one command (no geo stack)
+
+The Creek Fire maps above need the live EO stack. The detection *core*, though,
+runs on nothing but numpy. `pixi run demo` (or `make demo`, or
+`disturb demo`) synthesises a **small seeded synthetic NDVI series** - a linear
+trend plus an annual harmonic cycle plus noise, with a single **planted** step
+drop - then drives the real `harmonic_decompose` -> `detect_breakpoint`
+(CUSUM-on-residual) path and recovers it:
+
+```text
+$ pixi run demo
+Demo (seed=0) -> artefacts in outputs/
+{
+  "n_obs": 115,
+  "planted_break_index": 71,
+  "detected_index": 71,
+  "detected_magnitude": -0.099,
+  "detected_score": 2.70,
+  "detected": true,
+  "seasonal_amplitude": 0.226
+}
+```
+
+The detector places the break at **index 71, exactly where it was planted**,
+with a negative magnitude (a drop) and a CUSUM score of **2.70** (well above the
+1.0 threshold). These are real numbers from `src/disturb/demo.py`, not
+illustrative; the run is deterministic for a given seed and writes `series.csv`,
+`components.csv` and `summary.json` to `outputs/`. It is a synthetic sanity
+check of the core, not a claim about field accuracy - the Creek Fire run above
+is the real-data demonstration.
+
+## Capabilities
+
+Pure-numpy, unit-tested core (no geo stack needed):
+
+- **Harmonic seasonal-trend decomposition** (`harmonic_decompose`) - annual +
+  semiannual terms, per-harmonic amplitude and phase, NaN-tolerant.
+- **CUSUM single-breakpoint detection** (`detect_breakpoint`) - date and signed
+  magnitude of the most significant level shift.
+- **Multiple changepoints** (`detect_breakpoints_binseg`) - recursive binary
+  segmentation built on the CUSUM scan, no `ruptures` dependency.
+- **Recovery time** (`recovery_time`) - samples until a series returns to its
+  pre-break level.
+- **Robust trend statistics** (`theil_sen_slope`, `mann_kendall`) - outlier-
+  resistant slope and a non-parametric monotonic-trend significance test.
+- **Spatial validation** (`spatial_agreement`) - detection-rate / false-alarm-
+  rate against a documented event footprint.
+- **One-command demo** (`run_demo`) - the reproducible numbers above.
+
+Optional, behind lazy imports: STL (`statsmodels`), PELT
+(`detect_breakpoints_ruptures`), the EO cube build, and polygon rasterisation.
+
 ## Problem -> result -> run
 
 **Problem.** Wildfire, deforestation and drought leave a signature in the
@@ -74,8 +126,9 @@ scene.
   ratio keeps gaps honest.
 - **The core is pure numpy.** `harmonic_decompose`, `detect_breakpoint` and the
   `spatial_agreement` validation arithmetic depend only on numpy, so they are
-  unit-tested deterministically (`tests/`, 29 tests across decomposition,
-  detection and validation) and the package imports cleanly without the
+  unit-tested deterministically (`tests/`, 53 tests across decomposition,
+  detection, multiple-changepoint segmentation, robust trend statistics, the
+  reproducible demo and validation) and the package imports cleanly without the
   geospatial stack. Heavier paths (`statsmodels` STL, `ruptures` PELT, the EO
   stack, polygon rasterisation) are imported lazily behind guards.
 - **Multiple harmonics.** The decomposition fits an annual term plus, by
@@ -88,6 +141,7 @@ scene.
 
 ```bash
 pixi install        # resolves conda-forge geo deps and GENERATES pixi.lock
+pixi run demo       # reproducible pure-numpy demo -> outputs/ (no STAC needed)
 pixi run test       # pytest (pure-numpy core tests pass with no GIS install)
 pixi run lint       # ruff + mypy
 pixi run run        # disturb --config config/aoi.yaml  (hits live STAC)
@@ -143,9 +197,11 @@ disturbance-detection/
 ├── src/disturb/
 │   ├── cube.py                # STAC -> masked NDVI time cube (Dask xarray)
 │   ├── decompose.py           # pure-numpy harmonic regression (+ optional STL)
-│   ├── detect.py              # pure-numpy CUSUM breakpoint (+ optional ruptures)
+│   ├── detect.py              # CUSUM breakpoint + binseg + recovery_time (+ optional ruptures)
+│   ├── trend.py               # pure-numpy Theil-Sen slope + Mann-Kendall test
+│   ├── demo.py                # reproducible run_demo (synthetic NDVI -> recovered break)
 │   ├── validate.py            # spatial agreement vs. a known event
-│   └── cli.py                 # `disturb` entry point
+│   └── cli.py                 # `disturb` entry point (`disturb demo`)
 ├── tests/                     # pytest: decomposition, detection & validation on synthetic data
 ├── notebooks/01_disturbance.ipynb
 ├── outputs/                   # generated maps/figures

@@ -180,7 +180,10 @@ def coverage_bands(
     edges = sorted(thresholds_min)
     lower = 0.0
     for hi in edges:
-        band_mask = reachable & (tt > lower) & (tt <= hi)
+        # The first band includes its lower edge so a demand cell sitting exactly
+        # on a facility (travel time 0) is counted; later bands are (lower, hi].
+        above_lower = tt >= lower if lower == 0.0 else tt > lower
+        band_mask = reachable & above_lower & (tt <= hi)
         result[f"pop_band_{int(lower)}_{int(hi)}min"] = float(
             np.nansum(np.where(band_mask, pop, 0.0))
         )

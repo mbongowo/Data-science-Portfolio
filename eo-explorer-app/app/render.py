@@ -46,7 +46,7 @@ except Exception as exc:  # noqa: BLE001 - we want any import failure here
             out[denom == 0] = np.nan
         return out
 
-    def _ndvi(red, nir):  # type: ignore[misc]
+    def _ndvi(nir, red):  # type: ignore[misc]
         return _normalized_difference(nir, red)
 
     def _ndwi(green, nir):  # type: ignore[misc]
@@ -97,7 +97,9 @@ INDEX_REGISTRY: dict[str, IndexSpec] = {
         name="NDVI",
         description="Normalised Difference Vegetation Index (greenness).",
         func=_ndvi,
-        bands=("red", "nir"),
+        # Order matches eo_monitor.indices.ndvi(nir, red); compute_index passes
+        # bands positionally, so this must be (nir, red), not (red, nir).
+        bands=("nir", "red"),
         vmin=-0.2,
         vmax=0.9,
         colormap="RdYlGn",
@@ -288,6 +290,114 @@ def _latlon_bounds(data_latlon) -> list[list[float]]:
     xs = data_latlon["x"].values
     ys = data_latlon["y"].values
     return [[float(ys.min()), float(xs.min())], [float(ys.max()), float(xs.max())]]
+
+
+def percentile_stretch(values, lo: float = 2.0, hi: float = 98.0):
+    """Return robust ``(vmin, vmax)`` contrast bounds, ignoring NaN.
+
+    A linear stretch between the global min and max is fragile: a few extreme
+    pixels squash everything else into a narrow band of colour. Clipping to a
+    low and a high percentile (2 and 98 by default) discards those outliers and
+    gives a stretch that uses the colour ramp on the bulk of the data.
+
+    Parameters
+    ----------
+    values : array-like
+        Index values; NaNs are ignored.
+    lo, hi : float, optional
+        Lower and upper percentiles in ``[0, 100]`` with ``lo < hi``.
+
+    Returns
+    -------
+    tuple of float
+        ``(vmin, vmax)``. If no finite values are present both are NaN; if every
+        finite value is identical both equal that value.
+
+    Raises
+    ------
+    ValueError
+        If ``lo`` is not strictly less than ``hi``.
+    """
+    import numpy as np
+
+    if lo >= hi:
+        raise ValueError("lo must be strictly less than hi")
+    arr = np.asarray(values, dtype="float64")
+    finite = arr[np.isfinite(arr)]
+    if finite.size == 0:
+        return (float("nan"), float("nan"))
+    vmin, vmax = np.percentile(finite, [lo, hi])
+    return (float(vmin), float(vmax))
+
+
+def histogram(values, bins):
+    """Return ``(counts, edges)`` for a histogram of ``values``, ignoring NaN.
+
+    A thin wrapper over :func:`numpy.histogram` that first drops non-finite
+    values, so NaNs and infinities never land in a bin or skew the range.
+
+    Parameters
+    ----------
+    values : array-like
+        Index values; NaNs and infinities are ignored.
+    bins : int or sequence of float
+        Bin count or explicit bin edges, passed straight to
+        :func:`numpy.histogram`.
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        ``counts`` (length ``len(edges) - 1``) and ``edges``. When there are no
+        finite values the counts are all zero over the default ``[0, 1]`` range.
+    """
+    import numpy as np
+
+    arr = np.asarray(values, dtype="float64")
+    finite = arr[np.isfinite(arr)]
+    if finite.size == 0:
+        return np.histogram(np.array([]), bins=bins, range=(0.0, 1.0))
+    counts, edges = np.histogram(finite, bins=bins)
+    return counts, edges
+
+
+def downsample(arr, max_dim: int):
+    """Strided nearest-neighbour downsample so the longest side <= ``max_dim``.
+
+    A cheap preview helper: it takes every ``step``-th row and column, where
+    ``step`` is the smallest integer that brings the longer axis to or below
+    ``max_dim``. No interpolation or averaging, so it is fast and introduces no
+    new values (NaNs stay NaN). An array already within the limit is returned
+    unchanged.
+
+    Parameters
+    ----------
+    arr : array-like
+        A 2-D array (H, W).
+    max_dim : int
+        Maximum allowed length of the longer side, in pixels. Must be positive.
+
+    Returns
+    -------
+    numpy.ndarray
+        The strided view's contents. The longer side is ``<= max_dim``.
+
+    Raises
+    ------
+    ValueError
+        If ``max_dim`` is not positive or ``arr`` is not 2-D.
+    """
+    import numpy as np
+
+    if max_dim <= 0:
+        raise ValueError("max_dim must be positive")
+    a = np.asarray(arr)
+    if a.ndim != 2:
+        raise ValueError("downsample expects a 2-D array")
+    longest = max(a.shape)
+    if longest <= max_dim:
+        return a
+    step = -(-longest // max_dim)  # ceil division
+    return a[::step, ::step]
 
 
 def index_stats(data) -> dict[str, float]:

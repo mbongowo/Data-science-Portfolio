@@ -45,6 +45,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev", "gwr"], solve-group = "default" }
 
 [tasks]
+demo = "hotspots demo --seed 0 --out outputs"
 test = "pytest"
 lint = "ruff check . && mypy src"
 format = "ruff format ."

@@ -6,10 +6,54 @@ run a global Moran's I, map local clusters with LISA and Getis-Ord Gi*, and
 optionally fit a GWR. It closes with what these statistics do not establish.
 
 The pure-numpy reference functions (`morans_i_dense`, `gearys_c_dense`,
-`local_moran_dense`, `lisa_quadrants`, `getis_ord_g_star_dense`) run with only
-numpy installed and are meant for small problems and for checking your
-understanding. The permutation-based inference that real work needs lives in the
-`esda`-backed wrappers, which require the full pysal stack described below.
+`local_moran_dense`, `lisa_quadrants`, `getis_ord_g_star_dense`, plus
+`join_counts_dense`, `bivariate_moran_dense`, `moran_scatter_slope` and the
+`benjamini_hochberg` FDR helper) run with only numpy installed and are meant for
+small problems and for checking your understanding. The permutation-based
+inference that real work needs lives in the `esda`-backed wrappers, which
+require the full pysal stack described below.
+
+## 0. Quick start: the dependency-free demo
+
+Before installing the geospatial stack, run the synthetic demo. It needs only
+numpy, makes no network call, and is fully reproducible:
+
+```bash
+pixi run demo                       # or: hotspots demo --seed 0 --out outputs
+```
+
+Or from Python:
+
+```python
+from hotspots import run_demo
+
+summary = run_demo(seed=0, out_dir="outputs")
+print(summary["morans_i"], summary["lisa_counts"])
+```
+
+It builds a 12x12 rook-contiguity grid by hand, plants a High-High block and a
+Low-Low block into a noisy field, and drives the real ESDA core. It writes
+`outputs/summary.json` and `outputs/lisa_labels.csv`. For `seed=0` Moran's I is
+about `0.724` (Geary's C `0.239`), with the planted clusters showing up in the
+LISA and Gi* counts. It is a small seeded synthetic field, not real data — the
+point is a one-command reproducible check that the statistics respond to
+structure that was deliberately planted.
+
+The extra pure-numpy capabilities are available the same way:
+
+```python
+import numpy as np
+from hotspots import (
+    join_counts_dense, bivariate_moran_dense, moran_scatter_slope,
+    benjamini_hochberg, rook_weights,
+)
+
+w = rook_weights(12, 12)
+# join_counts_dense(binary_field, w) -> (BB, WW, BW)
+# bivariate_moran_dense(x, y, w)     -> Moran's I of x against the lag of y
+# moran_scatter_slope(values, w)     -> equals Moran's I on a row-standardised W
+reject, thresh = benjamini_hochberg(np.array([0.001, 0.008, 0.04]), alpha=0.05)
+```
 
 ## 1. Install
 

@@ -1,10 +1,13 @@
-.PHONY: install run test lint fmt clean
+.PHONY: install run demo test lint fmt clean
 
 install:
 	pixi install
 
 run:
 	pixi run disturb --config config/aoi.yaml
+
+demo:
+	pixi run disturb demo
 
 test:
 	pixi run pytest

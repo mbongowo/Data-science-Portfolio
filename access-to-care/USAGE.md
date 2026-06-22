@@ -10,6 +10,35 @@ rasters, and admin boundaries needs the geospatial stack (osmnx, geopandas,
 shapely, pyproj, h3, rasterio, rasterstats), which resolves most reliably from
 conda-forge.
 
+## 0. Quick demo (no downloads)
+
+To see the routing and equity code run end to end without any inputs or the
+geospatial stack, run the seeded demo (needs only numpy/pandas):
+
+```bash
+pixi run demo                 # or: make demo, or: python -m access.demo
+python -m access.demo --seed 0 --out outputs
+```
+
+It synthesizes a small seeded road network (a 12×12 grid with `travel_time` edge
+weights, three facilities, a population per node), routes every node to its
+nearest facility with the real multi-source Dijkstra, computes the equity
+metrics, and writes `outputs/demand.csv` and `outputs/summary.json`. `run_demo`
+returns the headline metrics as a dict:
+
+```python
+from access.demo import run_demo
+
+metrics = run_demo(seed=0, out_dir="outputs")
+# {'n_nodes': 144, 'n_facilities': 3, 'population_total': 107695.8,
+#  'share_within_30min': 0.100, 'share_within_60min': 0.351, 'pop_unreachable': 0.0}
+```
+
+The numbers are reproducible but illustrative — they come from a small seeded
+synthetic network, not measured Cameroon data. `summary.json` also carries the
+coverage bands, the population-weighted Gini of travel time (0.258), and the
+per-facility load.
+
 ## 1. Install
 
 The geospatial stack depends on GDAL/GEOS/PROJ system libraries. pixi pulls
@@ -135,6 +164,32 @@ national  = national_summary(demand_df, thresholds_min=[30, 60, 120])
 back up and reproduces `national_summary` exactly; `coverage_bands` splits the
 population into disjoint travel-time bands plus an unreachable bucket that sum to
 the total.
+
+### Inequality and accessibility metrics
+
+`src/access/metrics.py` adds three more measures, all pure numpy/pandas with
+hand-derived known-answer tests (`tests/test_metrics.py`):
+
+```python
+from access.access import assign_nearest_source
+from access.metrics import facility_load, gini_coefficient, two_step_floating_catchment
+
+# Population-weighted Gini of travel time (0 = equal, 1 = maximally unequal).
+gini = gini_coefficient(demand_df["travel_time_min"], demand_df["population"])
+
+# 2SFCA accessibility score per demand point (capacity reachable per person).
+access = two_step_floating_catchment(
+    demand_pop, facility_capacity, travel_times, catchment_min=60.0
+)
+
+# Which facility each node routes to (cost + source), then demand per facility.
+dist, nearest = assign_nearest_source(adjacency, facility_nodes)
+load = facility_load(node_ids, [nearest[n] for n in node_ids], population)
+```
+
+`assign_nearest_source` is the multi-source Dijkstra of `nearest_facility_times`
+extended to also return which source (facility) each node is closest to, which is
+what `facility_load` needs to attribute demand.
 
 ## 6. Expected outputs
 

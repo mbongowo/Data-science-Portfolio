@@ -12,10 +12,14 @@ import pytest
 from eo_monitor.indices import (
     BAND_ALIASES,
     compute_index,
+    evi2,
+    nbr,
     ndmi,
     ndvi,
     ndwi,
+    normalized_difference,
     required_bands,
+    savi,
 )
 
 
@@ -108,3 +112,76 @@ def test_required_bands_maps_to_assets() -> None:
         BAND_ALIASES["nir"],
         BAND_ALIASES["swir"],
     }
+
+
+def test_normalized_difference_public() -> None:
+    # normalized_difference(a, b) = (a - b) / (a + b).
+    a = np.array([0.8, 0.5])
+    b = np.array([0.2, 0.5])
+    # (0.8-0.2)/(0.8+0.2) = 0.6 ; (0.5-0.5)/(0.5+0.5) = 0.0
+    np.testing.assert_allclose(normalized_difference(a, b), np.array([0.6, 0.0]))
+    # And it matches ndvi (same formula).
+    np.testing.assert_allclose(normalized_difference(a, b), ndvi(a, b))
+
+
+def test_savi_known_values() -> None:
+    # SAVI = (1 + L) * (NIR - Red) / (NIR + Red + L), default L = 0.5.
+    nir = np.array([0.5, 0.45])
+    red = np.array([0.1, 0.06])
+    # Pixel 0: 1.5 * (0.5-0.1) / (0.5+0.1+0.5) = 1.5*0.4/1.1 = 0.6/1.1 = 0.545454...
+    # Pixel 1: 1.5 * (0.45-0.06) / (0.45+0.06+0.5) = 1.5*0.39/1.01 = 0.585/1.01
+    expected = np.array([0.6 / 1.1, 0.585 / 1.01])
+    np.testing.assert_allclose(savi(nir, red), expected)
+
+
+def test_savi_L_zero_equals_ndvi() -> None:
+    # At L = 0, SAVI collapses to NDVI.
+    nir = np.array([0.6, 0.3])
+    red = np.array([0.2, 0.3])
+    np.testing.assert_allclose(savi(nir, red, L=0.0), ndvi(nir, red))
+
+
+def test_evi2_known_values() -> None:
+    # EVI2 = 2.5 * (NIR - Red) / (NIR + 2.4*Red + 1).
+    nir = np.array([0.5, 0.3])
+    red = np.array([0.1, 0.3])
+    # Pixel 0: 2.5*(0.5-0.1)/(0.5+2.4*0.1+1) = 2.5*0.4/1.74 = 1.0/1.74 = 0.574712...
+    # Pixel 1: 2.5*(0.3-0.3)/(...) = 0.0
+    expected = np.array([1.0 / 1.74, 0.0])
+    np.testing.assert_allclose(evi2(nir, red), expected)
+
+
+def test_nbr_known_values() -> None:
+    # NBR = (NIR - SWIR) / (NIR + SWIR).
+    nir = np.array([0.6, 0.4])
+    swir2 = np.array([0.2, 0.4])
+    # (0.6-0.2)/(0.6+0.2) = 0.5 ; (0.4-0.4)/(0.4+0.4) = 0.0
+    np.testing.assert_allclose(nbr(nir, swir2), np.array([0.5, 0.0]))
+
+
+def test_savi_divide_by_zero_is_nan() -> None:
+    # NIR + Red + L == 0 only if NIR = Red = -L; force it with L = 0 and zeros.
+    out = savi(np.array([0.0]), np.array([0.0]), L=0.0)
+    assert np.isnan(out).all()
+
+
+def test_evi2_nan_input_propagates() -> None:
+    out = evi2(np.array([0.5, np.nan]), np.array([0.1, 0.1]))
+    assert np.isclose(out[0], 1.0 / 1.74)
+    assert np.isnan(out[1])
+
+
+def test_compute_index_new_names() -> None:
+    bands = {
+        "nir": np.array([0.5]),
+        "red": np.array([0.1]),
+        "swir2": np.array([0.2]),
+    }
+    np.testing.assert_allclose(compute_index("SAVI", bands), savi(bands["nir"], bands["red"]))
+    np.testing.assert_allclose(compute_index("evi2", bands), evi2(bands["nir"], bands["red"]))
+    np.testing.assert_allclose(compute_index("NBR", bands), nbr(bands["nir"], bands["swir2"]))
+
+
+def test_required_bands_new_indices() -> None:
+    assert required_bands(["NBR"]) == sorted([BAND_ALIASES["nir"], BAND_ALIASES["swir2"]])
+    assert set(required_bands(["SAVI", "EVI2"])) == {BAND_ALIASES["red"], BAND_ALIASES["nir"]}

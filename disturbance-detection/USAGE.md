@@ -6,9 +6,33 @@ pixel into trend and seasonality, detect the largest breakpoint, render date and
 magnitude maps, and validate the detections against a documented event.
 
 The pure-numpy core (`harmonic_decompose`, `detect_breakpoint`,
-`spatial_agreement`) runs with nothing but numpy. The cube build needs the
-geospatial stack and live access to a STAC API, so it is the only part that
-cannot run offline.
+`detect_breakpoints_binseg`, `recovery_time`, `theil_sen_slope`,
+`mann_kendall`, `spatial_agreement`) runs with nothing but numpy. The cube
+build needs the geospatial stack and live access to a STAC API, so it is the
+only part that cannot run offline.
+
+## 0. Quick check: the reproducible demo
+
+Before touching any STAC service, confirm the core works end to end:
+
+```bash
+pixi run demo            # or: make demo, or: disturb demo --seed 0 --out-dir outputs
+```
+
+This synthesises a small seeded synthetic NDVI series (linear trend + annual
+harmonic + noise) with a single planted step drop, runs
+`harmonic_decompose` then `detect_breakpoint` on the residual, and prints the
+recovered break. For `seed=0` it places the break at index 71 (exactly where it
+was planted) with magnitude about -0.099 and CUSUM score about 2.70, and writes
+`series.csv`, `components.csv` and `summary.json` to `outputs/`. In Python:
+
+```python
+from disturb import run_demo
+metrics = run_demo(seed=0, out_dir="outputs")
+# {'n_obs': 115, 'planted_break_index': 71, 'detected_index': 71,
+#  'detected_magnitude': -0.099..., 'detected_score': 2.70..., 'detected': True,
+#  'seasonal_amplitude': 0.226...}
+```
 
 ## 1. Install
 
@@ -157,6 +181,38 @@ masquerade as a break. `detect_breakpoint` returns the index, the calendar date
 (fire, clearing, drought), positive for a rise (regrowth). A single uncaught
 cloud scores below a sustained step, so the CUSUM threshold separates one-off
 outliers from real disturbances.
+
+### Further analysis on a single series
+
+The pure-numpy core carries a few more reviewer-grade tools, each unit-tested
+against a hand-derived answer:
+
+```python
+from disturb import (
+    detect_breakpoints_binseg, recovery_time,
+    theil_sen_slope, mann_kendall,
+)
+
+# Multiple changepoints without ruptures: recursive binary segmentation on the
+# same CUSUM scan. Returns Breakpoints sorted by index, each with a locally
+# recomputed magnitude.
+breaks = detect_breakpoints_binseg(
+    fit.residual, times=cube["time"].values,
+    max_breaks=3, threshold=1.0, min_segment=5,
+)
+
+# How long until the series returns to its pre-break level (in samples)?
+rec = recovery_time(series, break_index=breaks[0].index)  # int, or None
+
+# Robust trend on a baseline segment: Theil-Sen slope (median of pairwise
+# slopes, ~29% breakdown) and the Mann-Kendall monotonic-trend test.
+slope = theil_sen_slope(series, t=t_days)          # NDVI units per day
+mk = mann_kendall(series)                          # mk.trend / mk.s / mk.p_value
+```
+
+Use Theil-Sen + Mann-Kendall for the slow, monotonic part of the story
+(greening, gradual drought stress) and the breakpoint detectors for the abrupt
+disturbance. `recovery_time` turns a detected drop into a recovery duration.
 
 ## 5. Date and magnitude maps
 

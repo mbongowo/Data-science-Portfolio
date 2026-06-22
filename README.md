@@ -33,6 +33,11 @@ so the app and the pipeline share one definition of NDVI rather than two copies.
 order: 1, 2, 3, 5, 4, 6. If you only have time for three, projects 1, 3, and 6
 already cover a cloud-native pipeline, real spatial statistics, and a shipped app.
 
+Like the big-data track, each of these now ships a one-command demo
+(`pixi run demo` / `make demo`) that drives the real pure-numpy core over a small
+seeded synthetic input in seconds, so the numbers in each README are reproducible,
+and a walkthrough notebook in `notebooks/`.
+
 ## Big data track
 
 Eight non-spatial projects, each scoped to stand alone on a free, genuinely large

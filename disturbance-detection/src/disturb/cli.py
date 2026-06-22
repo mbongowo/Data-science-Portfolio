@@ -56,16 +56,54 @@ def run(config_path: str) -> int:
     return 0
 
 
+def run_demo_cli(seed: int, out_dir: str) -> int:
+    """Run the reproducible pure-numpy demo and print its metrics."""
+    import json
+
+    from .demo import run_demo
+
+    metrics = run_demo(seed=seed, out_dir=out_dir)
+    print(f"Demo (seed={seed}) -> artefacts in {out_dir}/")
+    print(json.dumps(metrics, indent=2))
+    rec = metrics["detected_index"]
+    plant = metrics["planted_break_index"]
+    print(
+        f"\nPlanted break at index {plant}; detected at {rec} "
+        f"(magnitude {metrics['detected_magnitude']:+.3f}, "
+        f"score {metrics['detected_score']:.2f})."
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="disturb", description=__doc__.splitlines()[0]
     )
+    # Keep `disturb --config ...` working as the default (no subcommand) path.
     parser.add_argument(
         "--config",
         default="config/aoi.yaml",
         help="Path to the AOI/detection YAML config.",
     )
+    sub = parser.add_subparsers(dest="command")
+
+    demo_parser = sub.add_parser(
+        "demo",
+        help="Run the reproducible pure-numpy demo (no geo stack needed).",
+    )
+    demo_parser.add_argument(
+        "--seed", type=int, default=0, help="Random seed (default 0)."
+    )
+    demo_parser.add_argument(
+        "--out-dir",
+        default="outputs",
+        help="Directory for series.csv/components.csv/summary.json.",
+    )
+
     args = parser.parse_args(argv)
+
+    if args.command == "demo":
+        return run_demo_cli(args.seed, args.out_dir)
     return run(args.config)
 
 

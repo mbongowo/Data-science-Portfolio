@@ -10,6 +10,7 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 download = "python data/download.py"
 network = "python -m access.network"
 access = "python -m access.access"
+demo = "python -m access.demo"
 test = "pytest -q"
 lint = "ruff check src tests && mypy src"
 format = "ruff format src tests"

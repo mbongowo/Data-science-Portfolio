@@ -15,27 +15,35 @@ out, not hand-waved.
 
 ## Result first
 
-**Question.** Does county-level **corn yield in Iowa (2023)** cluster in space,
-or is it spatially random?
+**Question.** When a field has spatial structure planted in it, do these
+statistics actually detect it? The headline numbers below come from the
+**runnable demo** (`pixi run demo`), not a hand-picked example: a 12x12 rook
+grid with a High-High block planted top-left, a Low-Low block bottom-right, and
+unit-scale Gaussian noise everywhere (`seed=0`).
 
-**Answer (illustrative).** Global Moran's I is **positive and significant**
-(pseudo *p* < 0.01 under 999 permutations), so yield is **not** spatially
-random — high-yield counties tend to neighbour other high-yield counties. The
-local maps localise this: a coherent **High-High** cluster (hot spots) and a
-**Low-Low** cluster (cold spots), plus a handful of **spatial outliers**.
-
-![Placeholder LISA / Gi* cluster map](outputs/.gitkeep)
-<!-- Running `make analyze` writes outputs/esda_result.gpkg and summary.json;
-     render the LISA/Gi* map from the notebook and drop the PNG here. -->
+**Answer.** Global Moran's I is **strongly positive** and Geary's C is **well
+below 1**, both signalling positive spatial autocorrelation against a null
+expectation near zero. The local statistics localise it: LISA flags the two
+planted cluster cores, and Getis-Ord Gi* finds one hot and one cold pocket.
 
 ```
-Global Moran's I : 0.41   E[I] = -0.0102   z = 7.8   p_sim = 0.001 (999 perms)
-LISA quadrants   : HH=15  LL=12  LH=2  HL=1  ns=69
-Getis-Ord Gi*    : hot=14  cold=11  ns=74   (significance = 0.05)
+n = 144 cells (12x12 rook grid, seed=0)
+Global Moran's I : 0.7242   E[I] = -0.0070     (positive autocorrelation)
+Geary's C        : 0.2392                       (< 1: clustering)
+LISA quadrants   : HH=48  LL=37  LH=33  HL=26  ns=0
+Getis-Ord Gi*    : hot=16  cold=16             (|z| > 1.96)
 ```
 
-*(Numbers above are illustrative placeholders; run the pipeline to regenerate
-them for the configured year/state.)*
+These are the **real** outputs of the pure-numpy core on a **small seeded
+synthetic field on a grid** — honest about being synthetic, but reproducible to
+the digit. The county-level USDA pipeline below uses the same statistics on real
+data (which requires the geospatial stack and a NASS key).
+
+**Reproduce:**
+
+```bash
+pixi run demo          # writes outputs/summary.json + outputs/lisa_labels.csv
+```
 
 ### What this analysis does **not** let you conclude
 
@@ -79,6 +87,28 @@ pysal-backed wrappers (`global_moran`, `local_moran`, `getis_ord_gi_star`) add
 the permutation inference real analyses need and import `esda` lazily, so the
 core and the test suite run without the geospatial stack installed.
 
+### Capabilities (pure numpy, no third-party deps)
+
+- **Global autocorrelation** — Moran's I (`morans_i_dense`) with its null
+  expectation (`expected_morans_i`), and Geary's C (`gearys_c_dense`).
+- **Local statistics** — Local Moran / LISA (`local_moran_dense`,
+  `lisa_quadrants`) and standardised Getis-Ord Gi* (`getis_ord_g_star_dense`).
+- **Join counts** — BB / WW / BW counts for a binary field (`join_counts_dense`).
+- **Bivariate Moran's I** — one variable against the spatial lag of another
+  (`bivariate_moran_dense`).
+- **Moran scatter slope** — the OLS slope of lag on value, a cross-check that
+  equals Moran's I on a row-standardised W (`moran_scatter_slope`).
+- **FDR correction** — Benjamini-Hochberg for the many per-location tests
+  (`benjamini_hochberg`).
+- **Grid helpers** — rook-contiguity builder and row-standardisation
+  (`rook_weights`, `row_standardize`) used by the demo.
+- **Runnable demo** — `run_demo(seed, out_dir)` / `hotspots demo` /
+  `pixi run demo`, a no-data reproducible run on a seeded synthetic grid.
+
+Every reference function has a **hand-derived known-answer test** (checkerboard
+join counts are all BW; bivariate Moran on a mirrored pair is `-1/3`; the
+scatter slope equals Moran's I; a worked Benjamini-Hochberg p-vector).
+
 See [`USAGE.md`](USAGE.md) for the end-to-end workflow: install, NASS key, data
 download, weights comparison, reading the Moran scatterplot and the LISA/Gi*
 cluster maps, and a section on what these tests do not prove.
@@ -91,10 +121,14 @@ cluster maps, and a section on what these tests do not prove.
 
 ```bash
 pixi install            # resolves deps and GENERATES pixi.lock (not committed)
+pixi run demo           # dependency-free synthetic run, regenerates the numbers above
 pixi run download       # needs NASS_API_KEY (free: quickstats.nass.usda.gov/api)
 pixi run analyze
 pixi run test
 ```
+
+The `demo` task needs nothing but numpy and writes `outputs/summary.json`. The
+`download`/`analyze` tasks need the full geospatial stack and a NASS key.
 
 > Note: `pixi.lock` is **machine-generated**. It is not committed here; running
 > `pixi install` creates it on your platform.

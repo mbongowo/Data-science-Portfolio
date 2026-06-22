@@ -37,6 +37,12 @@ __all__ = [
     "mean_iou",
     "per_class_iou",
     "mean_iou_multiclass",
+    "confusion_matrix",
+    "pixel_accuracy",
+    "frequency_weighted_iou",
+    "cohen_kappa",
+    "per_class_precision",
+    "per_class_recall",
 ]
 
 
@@ -397,3 +403,233 @@ def mean_iou_multiclass(
     if present.size == 0:
         return 1.0
     return float(np.mean(present))
+
+
+def confusion_matrix(
+    pred: np.ndarray,
+    target: np.ndarray,
+    num_classes: int,
+    ignore_index: int | None = None,
+) -> np.ndarray:
+    """Dense ``num_classes x num_classes`` confusion matrix.
+
+    Row ``i`` / column ``j`` counts pixels whose *target* is class ``i`` and
+    whose *prediction* is class ``j``; the diagonal therefore holds the correct
+    pixels. Counting is vectorised with ``np.bincount`` on the flattened
+    ``target * num_classes + pred`` index.
+
+    Parameters
+    ----------
+    pred, target : numpy.ndarray
+        Integer label maps of class indices in ``range(num_classes)``,
+        identical shape.
+    num_classes : int
+        Number of classes; sets the matrix size.
+    ignore_index : int, optional
+        Pixels whose ``target`` equals this value are dropped before counting.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer array of shape ``(num_classes, num_classes)`` (``target`` along
+        rows, ``pred`` along columns).
+
+    Raises
+    ------
+    ValueError
+        If shapes differ or ``num_classes`` is not positive.
+    """
+    pred = np.asarray(pred)
+    target = np.asarray(target)
+    if pred.shape != target.shape:
+        raise ValueError(
+            f"shape mismatch: pred {pred.shape} vs target {target.shape}"
+        )
+    if num_classes <= 0:
+        raise ValueError("num_classes must be positive")
+    keep = _valid_mask(target, ignore_index)
+    p = pred.reshape(-1)
+    t = target.reshape(-1)
+    if keep is not None:
+        keep = keep.reshape(-1)
+        p = p[keep]
+        t = t[keep]
+    p = p.astype(np.int64)
+    t = t.astype(np.int64)
+    index = t * num_classes + p
+    counts = np.bincount(index, minlength=num_classes * num_classes)
+    return counts.reshape(num_classes, num_classes)
+
+
+def pixel_accuracy(
+    pred: np.ndarray,
+    target: np.ndarray,
+    ignore_index: int | None = None,
+) -> float:
+    """Overall pixel accuracy: fraction of pixels predicted correctly.
+
+    Parameters
+    ----------
+    pred, target : numpy.ndarray
+        Integer label maps of identical shape.
+    ignore_index : int, optional
+        Pixels whose ``target`` equals this value are excluded from both the
+        numerator and the denominator.
+
+    Returns
+    -------
+    float
+        Accuracy in ``[0, 1]``. If every pixel is ignored the result is ``1.0``
+        (vacuously correct), matching the empty-mask convention used elsewhere.
+    """
+    pred = np.asarray(pred)
+    target = np.asarray(target)
+    if pred.shape != target.shape:
+        raise ValueError(
+            f"shape mismatch: pred {pred.shape} vs target {target.shape}"
+        )
+    keep = _valid_mask(target, ignore_index)
+    p = pred.reshape(-1)
+    t = target.reshape(-1)
+    if keep is not None:
+        keep = keep.reshape(-1)
+        p = p[keep]
+        t = t[keep]
+    if t.size == 0:
+        return 1.0
+    return float(np.mean(p == t))
+
+
+def per_class_precision(cm: np.ndarray) -> np.ndarray:
+    """Per-class precision from a confusion matrix.
+
+    With ``target`` along rows and ``pred`` along columns, precision for class
+    ``k`` is ``cm[k, k] / cm[:, k].sum()`` (correct predictions over everything
+    predicted as ``k``).
+
+    Parameters
+    ----------
+    cm : numpy.ndarray
+        Square confusion matrix from :func:`confusion_matrix`.
+
+    Returns
+    -------
+    numpy.ndarray
+        Float array of length ``num_classes``. A class that is never predicted
+        has a zero denominator and is reported as ``nan``.
+    """
+    cm = np.asarray(cm, dtype=np.float64)
+    diag = np.diag(cm)
+    predicted = cm.sum(axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        out = np.where(predicted > 0, diag / predicted, np.nan)
+    return out
+
+
+def per_class_recall(cm: np.ndarray) -> np.ndarray:
+    """Per-class recall from a confusion matrix.
+
+    With ``target`` along rows and ``pred`` along columns, recall for class
+    ``k`` is ``cm[k, k] / cm[k, :].sum()`` (correct predictions over everything
+    whose true class is ``k``).
+
+    Parameters
+    ----------
+    cm : numpy.ndarray
+        Square confusion matrix from :func:`confusion_matrix`.
+
+    Returns
+    -------
+    numpy.ndarray
+        Float array of length ``num_classes``. A class absent from the target
+        has a zero denominator and is reported as ``nan``.
+    """
+    cm = np.asarray(cm, dtype=np.float64)
+    diag = np.diag(cm)
+    actual = cm.sum(axis=1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        out = np.where(actual > 0, diag / actual, np.nan)
+    return out
+
+
+def frequency_weighted_iou(
+    pred: np.ndarray,
+    target: np.ndarray,
+    num_classes: int,
+    ignore_index: int | None = None,
+) -> float:
+    """Frequency-weighted IoU: per-class IoU weighted by class prevalence.
+
+    ``FWIoU = sum_k (freq_k * IoU_k)`` where ``freq_k`` is the fraction of valid
+    pixels whose true class is ``k``. Classes absent from the target contribute
+    zero weight, so they neither help nor hurt.
+
+    Parameters
+    ----------
+    pred, target : numpy.ndarray
+        Integer label maps of identical shape.
+    num_classes : int
+        Number of classes.
+    ignore_index : int, optional
+        Target value to drop before scoring.
+
+    Returns
+    -------
+    float
+        Frequency-weighted IoU in ``[0, 1]``. If no valid pixel remains the
+        result is ``1.0``.
+    """
+    cm = confusion_matrix(pred, target, num_classes, ignore_index)
+    total = cm.sum()
+    if total == 0:
+        return 1.0
+    actual = cm.sum(axis=1).astype(np.float64)  # true pixels per class
+    predicted = cm.sum(axis=0).astype(np.float64)
+    diag = np.diag(cm).astype(np.float64)
+    union = actual + predicted - diag
+    with np.errstate(invalid="ignore", divide="ignore"):
+        iou = np.where(union > 0, diag / union, 0.0)
+    freq = actual / float(total)
+    return float(np.sum(freq * iou))
+
+
+def cohen_kappa(
+    pred: np.ndarray,
+    target: np.ndarray,
+    num_classes: int,
+    ignore_index: int | None = None,
+) -> float:
+    """Cohen's kappa: agreement corrected for chance.
+
+    ``kappa = (p_o - p_e) / (1 - p_e)`` where ``p_o`` is observed agreement
+    (pixel accuracy) and ``p_e`` is the agreement expected if predictions and
+    targets were independent with the same marginals.
+
+    Parameters
+    ----------
+    pred, target : numpy.ndarray
+        Integer label maps of identical shape.
+    num_classes : int
+        Number of classes.
+    ignore_index : int, optional
+        Target value to drop before scoring.
+
+    Returns
+    -------
+    float
+        Kappa, typically in ``[-1, 1]``. ``1.0`` is perfect agreement and
+        ``~0`` is chance-level. When agreement is already forced (``p_e == 1``,
+        e.g. a single class) the result is ``1.0`` if observed agreement is also
+        perfect, else ``0.0``.
+    """
+    cm = confusion_matrix(pred, target, num_classes, ignore_index).astype(np.float64)
+    total = cm.sum()
+    if total == 0:
+        return 1.0
+    observed = np.trace(cm) / total
+    row_marginal = cm.sum(axis=1) / total
+    col_marginal = cm.sum(axis=0) / total
+    expected = float(np.sum(row_marginal * col_marginal))
+    if expected >= 1.0:
+        return 1.0 if observed >= 1.0 else 0.0
+    return float((observed - expected) / (1.0 - expected))

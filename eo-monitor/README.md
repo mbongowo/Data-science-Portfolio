@@ -22,13 +22,35 @@ plus quicklook PNGs.
 
 ### Result
 
-![NDVI anomaly](outputs/ndvi_anomaly.png)
+The full Sentinel-2 pipeline needs the conda-forge geo stack and network access
+to the STAC catalogue. For a result you can reproduce in under a second with
+only numpy, the project ships an offline demo that drives the *same* index and
+anomaly core over a small seeded synthetic cube with a planted vegetation-loss
+patch:
 
-*Generated artifact.* Running the pipeline writes `outputs/ndvi_anomaly.png`
-(and `.tif`) along with the NDWI/NDMI equivalents. Negative (red) z-scores mark
-pixels that were greener or wetter in past Julys/Augusts than in 2023. The image
-is not committed (`outputs/` is git-ignored); it appears after you run the
-command below.
+```bash
+pixi run demo          # or: make demo / eo-monitor demo
+```
+
+On `seed=0` (a 24×24 grid, planted 8×10 loss block = 80 pixels) it recovers the
+planted patch exactly:
+
+| metric | value |
+|--------|-------|
+| grid | 24 × 24 |
+| mean target NDVI | 0.683 |
+| anomaly pixels (\|z\| > 2) | 93 |
+| anomaly fraction | 0.161 |
+| max \|z\| | 42.12 |
+| planted block recovered (recall) | 1.0 |
+
+These are the actual numbers `run_demo(0)` prints; they are pinned in
+`tests/test_demo.py`. The demo writes `outputs/summary.json` plus the NDVI and
+z-score maps as `.npy`.
+
+The real run writes `outputs/ndvi_anomaly.png` (and `.tif`) plus the NDWI/NDMI
+equivalents; negative (red) z-scores mark pixels that were greener or wetter in
+past Julys/Augusts than in 2023. `outputs/` is git-ignored.
 
 ## How to run
 
@@ -92,9 +114,27 @@ config (YAML)
 
 | Index | Formula | Bands (S2 L2A) | Sensitive to |
 |-------|---------|----------------|--------------|
-| NDVI  | (NIR − Red) / (NIR + Red)   | B08, B04 | green biomass / vigour |
-| NDWI  | (Green − NIR) / (Green + NIR) | B03, B08 | open water / wetness |
-| NDMI  | (NIR − SWIR) / (NIR + SWIR) | B08, B11 | canopy moisture |
+| NDVI  | (NIR − Red) / (NIR + Red)         | B08, B04 | green biomass / vigour |
+| NDWI  | (Green − NIR) / (Green + NIR)     | B03, B08 | open water / wetness |
+| NDMI  | (NIR − SWIR) / (NIR + SWIR)       | B08, B11 | canopy moisture |
+| SAVI  | (1+L)(NIR − Red)/(NIR + Red + L)  | B08, B04 | vegetation, soil-corrected |
+| EVI2  | 2.5(NIR − Red)/(NIR + 2.4·Red + 1)| B08, B04 | dense canopy (less saturation) |
+| NBR   | (NIR − SWIR) / (NIR + SWIR)       | B08, B12 | burn severity |
+
+### Capabilities
+
+The pure-numpy core (`indices.py`, `anomaly.py`) is what the tests and the demo
+exercise; it runs with only numpy installed.
+
+- **Spectral indices:** NDVI, NDWI, NDMI, SAVI, EVI2, NBR, plus the public
+  `normalized_difference(a, b)` building block. Each is dispatchable by name via
+  `compute_index` / `required_bands`.
+- **Anomaly detection:** standard z-score (`anomaly_cube`, `zscore_anomaly`) and
+  an outlier-resistant `robust_zscore` (median + MAD scaled by 1.4826).
+- **Anomaly summaries:** `anomaly_fraction(z, threshold)` and
+  `classify_anomaly(z, threshold)` (−1 loss / 0 none / +1 gain).
+- Divide-by-zero, zero-variance, and NaN (masked-pixel) inputs all return NaN
+  rather than raising; every helper has a hand-derived known-answer test.
 
 ### Configuration
 
@@ -118,6 +158,7 @@ Malformed config raises a clear `pydantic.ValidationError`.
 
 ```bash
 make install   # pixi install (or pip install -e ".[dev]")
+make demo      # offline numpy demo -> outputs/summary.json (no geo stack)
 make test      # pytest
 make lint      # ruff check + mypy
 make run       # eo-monitor run --config config/corn_belt.yaml

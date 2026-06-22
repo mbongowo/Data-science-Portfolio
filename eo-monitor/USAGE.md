@@ -48,6 +48,23 @@ These work without the heavy geo libraries because the CLI defers those imports
 until a run actually starts. If `--help` works but a run fails on an import, the
 problem is a missing geo dependency, not the package itself.
 
+### Quick offline demo (no geo stack)
+
+Before configuring a real run you can exercise the index and anomaly core with a
+small seeded synthetic cube. It needs only numpy and finishes in under a second:
+
+```bash
+eo-monitor demo                 # or: pixi run demo / make demo
+eo-monitor demo --seed 0 -o outputs
+```
+
+It synthesises baseline and target reflectance stacks, plants a vegetation-loss
+patch in the target, runs the real NDVI/NDWI/NDMI and z-score anomaly code, and
+prints a metrics JSON (mean NDVI, anomaly pixel count, max |z|, and the fraction
+of the planted patch recovered by the |z| > 2 mask). It writes `summary.json`
+plus the NDVI and z-score maps as `.npy` to the output directory. This is a
+synthetic sanity check, not a real observation.
+
 ## 2. Configure
 
 Everything the pipeline does comes from one YAML file. The shipped example is
@@ -107,14 +124,18 @@ per-pixel mean and standard deviation are stable.
 
 ### `indices`
 
-A list of one or more of `NDVI`, `NDWI`, `NDMI` (case-insensitive; normalised to
-upper case). Each index produces its own anomaly and composite output.
+A list of one or more of `NDVI`, `NDWI`, `NDMI`, `SAVI`, `EVI2`, `NBR`
+(case-insensitive; normalised to upper case). Each index produces its own anomaly
+and composite output.
 
 | Index | Formula | Bands (S2 L2A) | Sensitive to |
 |-------|---------|----------------|--------------|
-| NDVI  | (NIR − Red) / (NIR + Red)     | B08, B04 | green biomass / vigour |
-| NDWI  | (Green − NIR) / (Green + NIR) | B03, B08 | open water / wetness |
-| NDMI  | (NIR − SWIR) / (NIR + SWIR)   | B08, B11 | canopy moisture |
+| NDVI  | (NIR − Red) / (NIR + Red)          | B08, B04 | green biomass / vigour |
+| NDWI  | (Green − NIR) / (Green + NIR)      | B03, B08 | open water / wetness |
+| NDMI  | (NIR − SWIR) / (NIR + SWIR)        | B08, B11 | canopy moisture |
+| SAVI  | (1+L)(NIR − Red)/(NIR + Red + L)   | B08, B04 | vegetation, soil-corrected (L=0.5) |
+| EVI2  | 2.5(NIR − Red)/(NIR + 2.4·Red + 1) | B08, B04 | dense canopy (less saturation) |
+| NBR   | (NIR − SWIR) / (NIR + SWIR)        | B08, B12 | burn severity |
 
 ### `stac`
 
@@ -154,6 +175,10 @@ eo-monitor run -c config/corn_belt.yaml --max-items 20 -o /tmp/run1 -v
 
 The run logs five stages: STAC search (target, then baseline), cube build, index
 computation, anomaly, and export. Each requested index is processed in turn.
+
+There is also a `demo` subcommand (`eo-monitor demo --seed N -o DIR`) that runs
+the offline synthetic example described under "Quick offline demo" above; it
+needs no config and no geo stack.
 
 ## 4. Outputs
 

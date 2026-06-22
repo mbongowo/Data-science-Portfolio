@@ -13,17 +13,31 @@ and reports which areas have low coverage at the 30/60/120-minute thresholds.
 
 ## The result
 
-> **Placeholder headline figure:** an estimated **1 in 4 people in Cameroon live
-> more than 60 minutes' drive from the nearest health facility** — and the gap is
-> widest in the rural North and Far North.
+The full pipeline needs the real WorldPop / Healthsites / OSM inputs. To show the
+machinery end to end without those downloads, a self-contained demo runs the real
+routing and equity code over a **small seeded synthetic road network** (a 12×12
+grid, three facilities, a population per node). Its numbers are reproducible but
+illustrative — not measured from Cameroon data.
 
-*(Run the pipeline on the real WorldPop / Healthsites / OSM inputs to replace
-this placeholder with measured numbers.)*
+**Demo output (`seed=0`, 144 nodes, 3 facilities, total population ≈ 107,696):**
 
-![Placeholder accessibility choropleth](outputs/.gitkeep)
+| Metric | Value |
+| --- | --- |
+| Population within 30 min | 10.0% |
+| Population within 60 min | 35.1% |
+| Population within 120 min | 93.3% |
+| Population unreachable | 0 |
+| Gini of travel time (population-weighted) | 0.258 |
+
+Coverage bands (people per disjoint travel-time bucket): 0–30 min ≈ 10,778;
+30–60 min ≈ 26,995; 60–120 min ≈ 62,671; 120 min+ ≈ 7,252.
+
+**Reproduce:** `pixi run demo` (or `make demo`, or
+`python -m access.demo`). It writes `outputs/demand.csv` and
+`outputs/summary.json`.
 
 *A choropleth of population-weighted travel time by admin-2 unit is written to
-`outputs/` when the pipeline runs.*
+`outputs/` when the full pipeline runs on real inputs.*
 
 ## How it works
 
@@ -45,6 +59,25 @@ this placeholder with measured numbers.)*
 The core routing and equity arithmetic are pure Python / numpy / pandas, so the
 logic is fully unit-tested (`tests/`) without needing the heavy geospatial stack.
 
+## Capabilities
+
+Beyond the within-threshold coverage shares, the pure core (`src/access/`) also
+computes:
+
+- **Gini coefficient** (`metrics.gini_coefficient`) — population-weighted
+  inequality of travel times, 0 (everyone equal) to 1 (maximally unequal).
+- **2SFCA** (`metrics.two_step_floating_catchment`) — the classic two-step
+  floating catchment area accessibility score, combining facility capacity and
+  demand within a travel-time catchment.
+- **Facility load** (`metrics.facility_load`) — the catchment demand
+  (population) assigned to each facility, built on
+  `access.assign_nearest_source`, a multi-source Dijkstra that returns both the
+  cost and *which* facility is nearest per node.
+- **Coverage bands** (`equity.coverage_bands`) — population in disjoint
+  travel-time buckets plus an unreachable bucket that partition the total.
+
+Each has a hand-derived known-answer test (`tests/test_metrics.py`).
+
 ## Data
 
 All inputs are downloaded reproducibly into `data/raw/` (git-ignored). URLs and
@@ -59,8 +92,14 @@ study-area parameters live in [`config/sources.yaml`](config/sources.yaml):
 
 ## How to run
 
-This project uses [pixi](https://pixi.sh) to manage the conda-forge geospatial
-stack (GDAL/GEOS/PROJ resolve cleanly that way).
+The seeded demo needs only numpy/pandas — no downloads, no geospatial stack:
+
+```bash
+pixi run demo            # or: make demo, or python -m access.demo
+```
+
+The full pipeline uses [pixi](https://pixi.sh) to manage the conda-forge
+geospatial stack (GDAL/GEOS/PROJ resolve cleanly that way).
 
 ```bash
 # 1. Install the environment. `pixi install` resolves pixi.toml and GENERATES

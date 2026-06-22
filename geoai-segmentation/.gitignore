@@ -36,3 +36,6 @@ mlruns/
 Thumbs.db
 .vscode/
 .idea/
+
+# Notebook-run demo artifacts
+notebooks/outputs/

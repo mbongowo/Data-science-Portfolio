@@ -7,9 +7,9 @@ validation stay fast and importable without the full geo stack.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -60,13 +60,13 @@ def run(
         exists=False,
         help="Path to the YAML configuration file.",
     ),
-    output_dir: Optional[Path] = typer.Option(
+    output_dir: Path | None = typer.Option(
         None,
         "--output-dir",
         "-o",
         help="Override the output directory from the config.",
     ),
-    max_items: Optional[int] = typer.Option(
+    max_items: int | None = typer.Option(
         None,
         "--max-items",
         help="Override the hard cap on STAC items pulled.",
@@ -147,6 +147,25 @@ def run(
             )
 
     logger.info("Done. Outputs written to %s", out_dir.resolve())
+
+
+@app.command()
+def demo(
+    seed: int = typer.Option(0, "--seed", help="Seed for the deterministic synthetic cube."),
+    output_dir: Path = typer.Option(
+        Path("outputs"),
+        "--output-dir",
+        "-o",
+        help="Where to write the demo artifacts (npy maps + summary.json).",
+    ),
+) -> None:
+    """Run the offline numpy demo (no STAC / GDAL) and print real metrics."""
+    # demo is pure numpy; import locally to keep the module import light.
+    from eo_monitor.demo import run_demo
+
+    metrics = run_demo(seed=seed, out_dir=output_dir)
+    typer.echo(json.dumps(metrics, indent=2))
+    typer.echo(f"\nArtifacts written to {output_dir.resolve()}")
 
 
 if __name__ == "__main__":  # pragma: no cover

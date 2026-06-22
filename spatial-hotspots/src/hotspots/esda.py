@@ -385,6 +385,312 @@ def getis_ord_g_star_dense(values: "ArrayLike", w: "ArrayLike") -> "NDArray[np.f
     return numer / (s * np.sqrt(var))
 
 
+def rook_weights(n_rows: int, n_cols: int) -> "NDArray[np.float64]":
+    """Build a binary rook-contiguity weights matrix for an ``n_rows`` x ``n_cols`` grid.
+
+    Cells are numbered in row-major order (``index = r * n_cols + c``). Two cells
+    are neighbours when they share an edge: up, down, left, or right. Corner
+    neighbours (the queen diagonals) are *not* included. The matrix is symmetric
+    with a zero diagonal.
+
+    Parameters
+    ----------
+    n_rows, n_cols:
+        Grid dimensions. Both must be >= 1 and the grid must hold at least two
+        cells (otherwise there are no neighbours).
+
+    Returns
+    -------
+    numpy.ndarray
+        A ``(n_rows*n_cols)`` x ``(n_rows*n_cols)`` binary weights matrix.
+
+    Raises
+    ------
+    ValueError
+        If a dimension is < 1 or the grid has fewer than two cells.
+    """
+    if n_rows < 1 or n_cols < 1:
+        raise ValueError("Grid dimensions must be positive.")
+    n = n_rows * n_cols
+    if n < 2:
+        raise ValueError("A rook grid needs at least two cells.")
+
+    w = np.zeros((n, n), dtype=float)
+    for r in range(n_rows):
+        for c in range(n_cols):
+            i = r * n_cols + c
+            if c + 1 < n_cols:  # right neighbour
+                j = r * n_cols + (c + 1)
+                w[i, j] = w[j, i] = 1.0
+            if r + 1 < n_rows:  # down neighbour
+                j = (r + 1) * n_cols + c
+                w[i, j] = w[j, i] = 1.0
+    return w
+
+
+def row_standardize(w: "ArrayLike") -> "NDArray[np.float64]":
+    """Return a copy of ``w`` with each non-empty row scaled to sum to one.
+
+    The diagonal is left untouched (callers that want self-weights zeroed should
+    do so before calling). Empty rows (islands) stay all-zero rather than
+    dividing by zero. This is the row-standardised (``transform="r"``) form used
+    throughout ESDA so the spatial lag becomes a local average.
+    """
+    weights = np.asarray(w, dtype=float)
+    return _row_standardize(weights)
+
+
+def join_counts_dense(
+    binary_values: "ArrayLike", w: "ArrayLike"
+) -> tuple[float, float, float]:
+    r"""Compute join-count statistics for a binary field on a dense weights matrix.
+
+    A "join" is an edge of the weights graph. With a binary attribute coded
+    ``1`` (Black, B) and ``0`` (White, W), each undirected join is one of three
+    types: BB (both ends 1), WW (both ends 0), or BW (mixed). The counts are
+
+    .. math::
+
+        BB = \tfrac12 \sum_{i,j} w_{ij}\, x_i x_j, \quad
+        WW = \tfrac12 \sum_{i,j} w_{ij}\, (1-x_i)(1-x_j), \quad
+        BW = \tfrac12 \sum_{i,j} w_{ij}\, (x_i - x_j)^2 .
+
+    The factor of one half turns the directed double-sum over a symmetric binary
+    ``W`` into a count of undirected edges. ``BB + WW + BW`` equals the total
+    number of joins (``S0 / 2``). A checkerboard of a binary field makes every
+    join BW; a single solid block makes BB and WW dominate.
+
+    Parameters
+    ----------
+    binary_values:
+        Length-``n`` array of 0/1 values. Anything non-0/1 raises.
+    w:
+        Dense ``n`` x ``n`` symmetric binary weights matrix. The diagonal is
+        ignored. Pass an unstandardised contiguity matrix; row-standardising
+        would make the counts meaningless.
+
+    Returns
+    -------
+    tuple of float
+        ``(BB, WW, BW)`` join counts.
+
+    Raises
+    ------
+    ValueError
+        If shapes are inconsistent, ``n < 2``, or values are not all 0/1.
+    """
+    x = np.asarray(binary_values, dtype=float).ravel()
+    weights = np.asarray(w, dtype=float)
+
+    n = x.size
+    if n < 2:
+        raise ValueError("Join counts require at least 2 observations.")
+    if weights.shape != (n, n):
+        raise ValueError(
+            f"Weights matrix shape {weights.shape} does not match "
+            f"the number of observations ({n})."
+        )
+    if not np.all((x == 0.0) | (x == 1.0)):
+        raise ValueError("Join counts require a binary 0/1 field.")
+
+    weights = weights.copy()
+    np.fill_diagonal(weights, 0.0)
+
+    bb = 0.5 * float(x @ weights @ x)
+    one_minus = 1.0 - x
+    ww = 0.5 * float(one_minus @ weights @ one_minus)
+    diff_sq = (x[:, None] - x[None, :]) ** 2
+    bw = 0.5 * float((weights * diff_sq).sum())
+    return bb, ww, bw
+
+
+def bivariate_moran_dense(
+    x: "ArrayLike", y: "ArrayLike", w: "ArrayLike"
+) -> float:
+    r"""Compute the bivariate Moran's I of ``x`` against the spatial lag of ``y``.
+
+    .. math::
+
+        I_{xy} = \frac{n}{S_0} \cdot
+                 \frac{z_x^\top W z_y}{\sqrt{(z_x^\top z_x)(z_y^\top z_y)}}
+
+    where :math:`z_x = x - \bar{x}` and :math:`z_y = y - \bar{y}`. It measures
+    the degree to which a location's value of ``x`` lines up with the values of
+    ``y`` in neighbouring locations. With ``x == y`` it reduces to the univariate
+    Moran's I (the standardisation cancels). It is asymmetric in general:
+    ``I_xy != I_yx``.
+
+    Parameters
+    ----------
+    x, y:
+        Length-``n`` arrays. ``x`` is the focal variable, ``y`` the one that is
+        spatially lagged.
+    w:
+        Dense ``n`` x ``n`` spatial weights matrix. The diagonal is ignored.
+
+    Returns
+    -------
+    float
+        The bivariate Moran's I.
+
+    Raises
+    ------
+    ValueError
+        If shapes are inconsistent, ``n < 2``, the weights sum to zero, or
+        either variable has zero variance.
+    """
+    xv = np.asarray(x, dtype=float).ravel()
+    yv = np.asarray(y, dtype=float).ravel()
+    weights = np.asarray(w, dtype=float)
+
+    n = xv.size
+    if n < 2:
+        raise ValueError("Bivariate Moran's I requires at least 2 observations.")
+    if yv.size != n:
+        raise ValueError("x and y must have the same length.")
+    if weights.shape != (n, n):
+        raise ValueError(
+            f"Weights matrix shape {weights.shape} does not match "
+            f"the number of observations ({n})."
+        )
+
+    weights = weights.copy()
+    np.fill_diagonal(weights, 0.0)
+
+    s0 = float(weights.sum())
+    if s0 == 0.0:
+        raise ValueError("Sum of weights (S0) is zero; every unit is an island.")
+
+    zx = xv - xv.mean()
+    zy = yv - yv.mean()
+    denom = float(np.sqrt((zx @ zx) * (zy @ zy)))
+    if denom == 0.0:
+        raise ValueError("A variable has zero variance; bivariate Moran is undefined.")
+
+    numer = float(zx @ weights @ zy)
+    return (n / s0) * (numer / denom)
+
+
+def moran_scatter_slope(values: "ArrayLike", w: "ArrayLike") -> float:
+    r"""Return the OLS slope of the spatial lag on the value, a cross-check on Moran's I.
+
+    On a row-standardised ``W`` the Moran scatterplot puts the centred value
+    :math:`z_i` on the x-axis and its spatial lag :math:`(Wz)_i` on the y-axis.
+    The least-squares slope of that cloud through the origin,
+
+    .. math::
+
+        \hat\beta = \frac{z^\top W z}{z^\top z},
+
+    is exactly Moran's I for a row-standardised ``W`` (where ``S0 = n``). This
+    function row-standardises ``W`` first, so its result equals
+    :func:`morans_i_dense` on the same row-standardised matrix. It exists to make
+    that identity explicit and testable.
+
+    Parameters
+    ----------
+    values:
+        Length-``n`` array of observed values.
+    w:
+        Dense ``n`` x ``n`` spatial weights matrix; it is row-standardised
+        internally before the slope is formed.
+
+    Returns
+    -------
+    float
+        The scatterplot slope (== Moran's I on the row-standardised ``W``).
+
+    Raises
+    ------
+    ValueError
+        If shapes are inconsistent, ``n < 2``, or the values have zero variance.
+    """
+    x = np.asarray(values, dtype=float).ravel()
+    weights = np.asarray(w, dtype=float)
+
+    n = x.size
+    if n < 2:
+        raise ValueError("Moran scatter slope requires at least 2 observations.")
+    if weights.shape != (n, n):
+        raise ValueError(
+            f"Weights matrix shape {weights.shape} does not match "
+            f"the number of observations ({n})."
+        )
+
+    weights = weights.copy()
+    np.fill_diagonal(weights, 0.0)
+    weights = _row_standardize(weights)
+
+    z = x - x.mean()
+    denom = float(z @ z)
+    if denom == 0.0:
+        raise ValueError("Values have zero variance; the slope is undefined.")
+
+    lag = weights @ z
+    return float(z @ lag) / denom
+
+
+def benjamini_hochberg(
+    pvalues: "ArrayLike", alpha: float = 0.05
+) -> tuple["NDArray[np.bool_]", float]:
+    r"""Benjamini-Hochberg FDR correction for a vector of p-values.
+
+    Sort the ``m`` p-values ascending as :math:`p_{(1)} \le \dots \le p_{(m)}`.
+    Find the largest rank ``k`` with
+
+    .. math::
+
+        p_{(k)} \le \frac{k}{m}\,\alpha .
+
+    Reject every hypothesis whose p-value is :math:`\le p_{(k)}` (the BH
+    threshold). If no rank satisfies the inequality, reject nothing and the
+    threshold is ``0.0``. This controls the false discovery rate at ``alpha``
+    under independence or positive dependence, and is the right correction for
+    the many per-location LISA/Gi* tests.
+
+    Parameters
+    ----------
+    pvalues:
+        Length-``m`` array of p-values in ``[0, 1]``.
+    alpha:
+        Target false discovery rate. Must be in ``(0, 1]``.
+
+    Returns
+    -------
+    tuple
+        ``(reject, threshold)`` where ``reject`` is a boolean mask aligned with
+        the input order (True == reject the null) and ``threshold`` is the BH
+        cutoff p-value (``0.0`` if nothing is rejected).
+
+    Raises
+    ------
+    ValueError
+        If ``pvalues`` is empty, contains values outside ``[0, 1]``, or ``alpha``
+        is not in ``(0, 1]``.
+    """
+    p = np.asarray(pvalues, dtype=float).ravel()
+    m = p.size
+    if m == 0:
+        raise ValueError("benjamini_hochberg requires at least one p-value.")
+    if np.any(p < 0.0) | np.any(p > 1.0):
+        raise ValueError("p-values must lie in [0, 1].")
+    if not (0.0 < alpha <= 1.0):
+        raise ValueError("alpha must be in (0, 1].")
+
+    order = np.argsort(p, kind="stable")
+    ranked = p[order]
+    ranks = np.arange(1, m + 1)
+    crit = ranks / m * alpha
+    passed = ranked <= crit
+    if not passed.any():
+        return np.zeros(m, dtype=bool), 0.0
+
+    k = int(np.max(np.nonzero(passed)[0]))  # 0-based index of largest passing rank
+    threshold = float(ranked[k])
+    reject = p <= threshold
+    return reject, threshold
+
+
 # --------------------------------------------------------------------------- #
 # Result containers for the pysal-backed analyses
 # --------------------------------------------------------------------------- #

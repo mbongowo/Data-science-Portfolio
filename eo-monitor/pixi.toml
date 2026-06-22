@@ -9,6 +9,7 @@ platforms = ["linux-64", "osx-arm64", "win-64"]
 [tasks]
 # Mirror the Makefile verbs so `pixi run <verb>` works cross-platform.
 run = "eo-monitor run --config config/corn_belt.yaml"
+demo = "eo-monitor demo"
 test = "pytest"
 lint = "ruff check src tests && mypy"
 format = "ruff format src tests"

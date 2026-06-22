@@ -1,13 +1,14 @@
 # Makefile for eo-explorer-app -- convenience wrappers.
 # (Optional: the project also ships pixi tasks; see `pixi run --help`.)
 
-.PHONY: help install install-eo-monitor app test lint format docker clean
+.PHONY: help install install-eo-monitor app demo test lint format docker clean
 
 help:
 	@echo "Targets:"
 	@echo "  install            pip install -r requirements.txt + the app (editable)"
 	@echo "  install-eo-monitor install the reused flagship package from ../eo-monitor"
 	@echo "  app                launch the Streamlit app"
+	@echo "  demo               run the offline, no-network demo (writes outputs/)"
 	@echo "  test               run the pytest smoke tests"
 	@echo "  lint               ruff check"
 	@echo "  format             ruff format"
@@ -23,6 +24,9 @@ install-eo-monitor:
 
 app:
 	streamlit run app/main.py
+
+demo:
+	python -m app.demo
 
 test:
 	pytest -q

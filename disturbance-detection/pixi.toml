@@ -17,6 +17,7 @@ test = "pytest"
 lint = "ruff check src tests && mypy src"
 fmt = "ruff format src tests"
 run = "disturb --config config/aoi.yaml"
+demo = "disturb demo"
 
 [dependencies]
 python = ">=3.10,<3.13"

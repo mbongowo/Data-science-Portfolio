@@ -1,12 +1,13 @@
 # Convenience targets. These wrap pixi tasks where possible; plain-python
 # fallbacks are provided for environments without pixi.
-.PHONY: help install lint test run train smoke prepare clean
+.PHONY: help install lint test run train smoke prepare demo clean
 
 help:
 	@echo "Targets:"
 	@echo "  install   pixi install (resolves env + writes pixi.lock)"
 	@echo "  lint      ruff check + mypy"
 	@echo "  test      pytest"
+	@echo "  demo      run the GPU-free metric demo (writes outputs/)"
 	@echo "  prepare   generate tiny synthetic dataset"
 	@echo "  smoke     1-step fast_dev_run training smoke"
 	@echo "  train     full training run (needs torch + data + ideally a GPU)"
@@ -20,6 +21,9 @@ lint:
 
 test:
 	pytest -q
+
+demo:
+	python -m geoseg.demo
 
 prepare:
 	python scripts/prepare_data.py --synthetic --out data/spacenet

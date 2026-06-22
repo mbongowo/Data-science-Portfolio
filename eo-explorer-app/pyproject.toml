@@ -78,6 +78,8 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# The package lives at the project root (app/), so put it on sys.path for pytest.
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100

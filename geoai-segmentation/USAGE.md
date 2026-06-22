@@ -7,7 +7,35 @@ a result can be traced back to the exact code and settings that produced it.
 If you only want to check the parts that do not need a model, jump to
 [Run the numpy-only tests](#run-the-numpy-only-tests). Those tests cover the
 metric formulas, tiling, splitting, normalisation, and seeding, and they run on
-a machine with nothing but numpy installed.
+a machine with nothing but numpy installed. For a single-command demonstration
+with real numbers, see [Run the demo](#run-the-demo) — no GPU, no data, under a
+second.
+
+## Run the demo
+
+`geoseg.demo` is a self-contained, GPU-free demonstration of the tested
+pure-numpy core. It synthesises a small seeded 4-class label map and a
+deliberately noisy prediction, drives the real metric functions over them, and
+writes artifacts:
+
+```bash
+pixi run demo            # or: python -m geoseg.demo  (or: make demo)
+```
+
+This prints a summary dict and writes three files to `outputs/`:
+
+- `per_class_iou.csv` — IoU for each class (blank for absent classes).
+- `confusion.csv` — the `N×N` confusion matrix (rows = true, cols = predicted).
+- `summary.json` — mean IoU, pixel accuracy, frequency-weighted IoU, Cohen's
+  kappa, and binary foreground IoU/F1/precision/recall.
+
+The numbers are deterministic for a given seed (default 0) and are pinned in
+`tests/test_demo.py`. They come from small seeded synthetic masks, so they
+exercise the metric code honestly but are not a model result. Override the seed
+with `python -m geoseg.demo --seed 7`.
+
+`notebooks/01_walkthrough.ipynb` runs the same demo and additionally shows the
+confusion matrix and a tiling round-trip with brief commentary.
 
 ## Install
 
@@ -168,10 +196,12 @@ evaluate(
 ```
 
 The metric module exposes more than the two headline numbers: per-class IoU and
-macro IoU for multi-class label maps, plus precision and recall, all with
-`ignore_index` support for void pixels and a defined convention for empty masks
-(an empty prediction that matches an empty target scores 1.0). These run without
-torch and can be called directly on numpy arrays.
+macro IoU for multi-class label maps, a dense confusion matrix, pixel accuracy,
+frequency-weighted IoU, Cohen's kappa, and per-class precision/recall, plus the
+binary precision and recall — all with `ignore_index` support for void pixels and
+a defined convention for empty masks (an empty prediction that matches an empty
+target scores 1.0). These run without torch and can be called directly on numpy
+arrays; `geoseg.demo` exercises them end to end.
 
 ## Infer on a new tile
 
@@ -220,7 +250,10 @@ PYTHONPATH=src python -m pytest tests/
 ```
 
 They cover the metrics (IoU, F1, precision, recall, per-class and macro IoU,
-`ignore_index`, empty-mask handling), the tiling grid including partial and
+confusion matrix, pixel accuracy, frequency-weighted IoU, Cohen's kappa,
+`ignore_index`, empty-mask handling), the sliding-window tiling (`tile_indices`
+coverage and `stitch` round-trip with and without overlap), the demo (pinned
+seed-0 numbers), the tiling grid in the datamodule including partial and
 overlapping tiles, the deterministic split (stability, proportions, no overlap,
 order preservation), per-band normalisation, and the seed utility. Full training
 and the torch-dependent inference and evaluation paths additionally need

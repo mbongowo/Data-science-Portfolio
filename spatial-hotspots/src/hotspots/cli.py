@@ -118,10 +118,39 @@ def run(config_path: str | Path, data_path: str | Path, out_dir: str | Path) -> 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="hotspots", description=__doc__)
+    sub = parser.add_subparsers(dest="command")
+
+    # `hotspots demo` — dependency-free synthetic run, no data or geo stack.
+    p_demo = sub.add_parser(
+        "demo",
+        help="Run the dependency-free ESDA demo on a seeded synthetic grid.",
+    )
+    p_demo.add_argument("--seed", type=int, default=0)
+    p_demo.add_argument("--out", default="outputs")
+
+    # `hotspots analyze` — the full pysal-backed pipeline from a config + data.
+    p_run = sub.add_parser("analyze", help="Run the full ESDA pipeline from a config.")
+    p_run.add_argument("--config", default="config/aoi.yaml")
+    p_run.add_argument("--data", required=True, help="Path to the input GeoPackage.")
+    p_run.add_argument("--out", default="outputs")
+
+    # Backwards-compatible flat form: `hotspots --data ... [--config ...] [--out ...]`
+    # with no subcommand still runs the full pipeline.
     parser.add_argument("--config", default="config/aoi.yaml")
-    parser.add_argument("--data", required=True, help="Path to the input GeoPackage.")
+    parser.add_argument("--data", help="Path to the input GeoPackage.")
     parser.add_argument("--out", default="outputs")
+
     args = parser.parse_args(argv)
+
+    if args.command == "demo":
+        from hotspots.demo import run_demo
+
+        summary = run_demo(seed=args.seed, out_dir=args.out)
+        print(json.dumps(summary, indent=2))
+        return 0
+
+    if args.data is None:
+        parser.error("--data is required for the analyze pipeline (or use `demo`).")
 
     summary = run(args.config, args.data, args.out)
     print(json.dumps(summary, indent=2))

@@ -31,3 +31,6 @@ outputs/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Notebook-run demo artifacts
+notebooks/outputs/
