@@ -6,6 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=mbongowo/Data-science-Portfolio&branch=main&mainModule=non-spatial/05-focused-ml-project/app/streamlit_app.py)
 
+**▶ Live demo:** <https://data-science-portfolio-fexfuaen4zdrzgpmu53nhs.streamlit.app/>
+> Streamlit Community Cloud (free tier — it sleeps after inactivity, so the first load may take a few seconds to wake).
+
 A small **Retrieval-Augmented Generation (RAG)** system that answers
 natural-language questions across my data-science portfolio. Each project in this
 monorepo has a short markdown summary; ask *"which project detects floods from
@@ -177,7 +180,8 @@ Deploy the extractive app free on **Streamlit Community Cloud**:
 - **Python version** (Advanced settings): **3.12**
 
 Cloud installs from `app/requirements.txt` (numpy / pandas / streamlit only — the
-extractive RAG needs no LLM library or key). Live URL: _add after first deploy_.
+extractive RAG needs no LLM library or key). **Live URL:**
+<https://data-science-portfolio-fexfuaen4zdrzgpmu53nhs.streamlit.app/>
 
 ## Limitations
 
