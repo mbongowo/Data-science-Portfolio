@@ -140,6 +140,7 @@ def main() -> None:
     c4.metric(f"Pop. within {threshold_km} km", f"{share_within:.0%}")
 
     # --- map ----------------------------------------------------------------
+    import folium
     import leafmap.foliumap as leafmap
 
     center_lat = float(places["lat"].mean())
@@ -147,33 +148,35 @@ def main() -> None:
     m = leafmap.Map(center=(center_lat, center_lon), zoom=6, draw_control=False)
     m.add_basemap("CartoDB.Positron")
 
+    # Populated places as graduated circle markers (folium.CircleMarker, not the
+    # default pin) coloured by distance band; underserved places get a black ring.
     for _, row in access.iterrows():
         colour = BIN_COLOURS.get(row["band"], "#777777")
         underserved = bool(row["underserved"])
         name = row.get("name", "place")
-        m.add_marker(
+        folium.CircleMarker(
             location=(float(row["lat"]), float(row["lon"])),
-            popup=(
-                f"<b>{name}</b><br>nearest facility: {row['nearest_km']:.1f} km"
-                f"<br>population: {int(row['population']):,}"
-                f"<br>band: {row['band']}"
-            ),
-            icon=None,
             radius=8 if underserved else 5,
             color="#000000" if underserved else colour,
             weight=2 if underserved else 1,
             fill=True,
             fill_color=colour,
             fill_opacity=0.85,
-        )
+            popup=(
+                f"<b>{name}</b><br>nearest facility: {row['nearest_km']:.1f} km"
+                f"<br>population: {int(row['population']):,}"
+                f"<br>band: {row['band']}"
+            ),
+        ).add_to(m)
 
+    # Health facilities as blue plus-icon markers (folium.Icon object, not a dict).
     for _, row in facilities.iterrows():
         fname = row.get("name", "facility")
-        m.add_marker(
+        folium.Marker(
             location=(float(row["lat"]), float(row["lon"])),
             popup=f"<b>{fname}</b><br>health facility",
-            icon={"color": "blue", "icon": "plus", "prefix": "fa"},
-        )
+            icon=folium.Icon(color="blue", icon="plus", prefix="fa"),
+        ).add_to(m)
 
     legend = {**BIN_COLOURS, "facility (marker)": "#2c7fb8"}
     m.add_legend(title="Distance to nearest facility", legend_dict=legend)
