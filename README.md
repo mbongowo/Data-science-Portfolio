@@ -5,10 +5,14 @@ large-scale (big data) analytics, built so the same code runs the same way on
 someone else's machine as it does on mine.
 
 Each project lives in its own folder with its own environment, tests, CI, and
-documentation. There are two tracks: a **spatial** track (remote sensing,
-geospatial pipelines, GeoAI) and a **big data** track (streaming, distributed
-processing, the modern data stack — no geospatial component). Pick by the role
-you are reading for; every folder stands alone.
+documentation. The work splits into a **spatial** track (remote sensing,
+geospatial pipelines, GeoAI), a **big data** track (streaming, distributed
+processing, the modern data stack), and a set of **technique-replication**
+projects that rebuild the idea behind a well-known open-source repo on a new
+dataset or region. Every folder stands alone; pick by the role you are reading
+for. Across all of them the pure-numerical core runs and is tested in CI, while
+the heavy parts (GPU, Earth Engine, Docker/Kafka, Terraform/Azure, deploys) are
+documented to run on your own machine.
 
 ## Spatial track
 
@@ -66,6 +70,39 @@ Depth beats breadth: each of these is a complete, documented, reproducible piece
 rather than a stub. For a data-engineering read, start with `clickstream-pipeline`,
 `tlc-analytics`, and `dbt-modern-stack`.
 
+## Technique-replication projects
+
+Ten further projects — five spatial, five non-spatial — that replicate the
+technique behind a well-known open-source repository on a new dataset or region
+(mostly **Cameroon**) and add what the original lacks: hand-derived tests, a
+deployable app, an Azure path, or honest validation against an official source.
+Each rebuilds the idea rather than cloning it, with a pure-numpy/pandas core that
+runs and is tested in CI and a default area-of-interest you can swap for your own.
+
+### Spatial (`spatial/01–05`)
+
+| Folder | What it shows | Inspired by |
+|--------|---------------|-------------|
+| [`01-segment-geospatial`](./spatial/01-segment-geospatial) | Segment-Anything masks → counted/measured buildings & fields over Douala | [opengeos/segment-geospatial](https://github.com/opengeos/segment-geospatial) |
+| [`02-earth-engine-timeseries`](./spatial/02-earth-engine-timeseries) | Multi-year Sentinel-2 change / forest-loss; STAC-default (auth-free), geemap optional | [giswqs/geemap](https://github.com/giswqs/geemap) |
+| [`03-torchgeo-landcover`](./spatial/03-torchgeo-landcover) | Land-cover classification, pretrained-vs-from-scratch, with a model card | [microsoft/torchgeo](https://github.com/microsoft/torchgeo) |
+| [`04-leafmap-dashboard`](./spatial/04-leafmap-dashboard) | Deployable clinic-access dashboard (who is farthest from a clinic?) | [opengeos/leafmap](https://github.com/opengeos/leafmap) |
+| [`05-change-detection`](./spatial/05-change-detection) | SAR flood mapping (Otsu + before/after), validated against an OCHA report | [robmarkcole/satellite-image-deep-learning](https://github.com/robmarkcole/satellite-image-deep-learning) |
+
+### Non-spatial (`non-spatial/01–05`)
+
+| Folder | What it shows | Inspired by |
+|--------|---------------|-------------|
+| [`01-data-engineering-pipeline`](./non-spatial/01-data-engineering-pipeline) | Cameroon-weather ingest → warehouse → dbt → dashboard; DuckDB free or Azure | [DataTalksClub/data-engineering-zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) |
+| [`02-mlops-pipeline`](./non-spatial/02-mlops-pipeline) | Rain-day model with MLflow tracking, FastAPI/Docker serving, PSI/KS drift monitoring | [DataTalksClub/mlops-zoomcamp](https://github.com/DataTalksClub/mlops-zoomcamp) |
+| [`03-streaming-pipeline`](./non-spatial/03-streaming-pipeline) | Real-time air-quality streaming with EPA AQI and threshold/spike alerting | [damklis/DataEngineeringProject](https://github.com/damklis/DataEngineeringProject) |
+| [`04-ml-web-app`](./non-spatial/04-ml-web-app) | Deployable crop recommender (soil & climate → ranked crop) | [shsarv/Machine-Learning-Projects](https://github.com/shsarv/Machine-Learning-Projects) |
+| [`05-focused-ml-project`](./non-spatial/05-focused-ml-project) | RAG question-answering over this portfolio's docs; free extractive, optional LLM | [ashishpatel26/500-…-Projects](https://github.com/ashishpatel26/500-AI-Machine-learning-Deep-learning-Computer-vision-NLP-Projects-with-code) |
+
+Several ship a deployable Streamlit app with an "Open in Streamlit" badge, and the
+cloud-touching ones (data engineering, MLOps, streaming) carry both a free local
+path and an opt-in **Azure** path.
+
 ## Running a project
 
 **New here? Read [RUNNING.md](./RUNNING.md)** — it has copy-paste steps for the
@@ -89,7 +126,7 @@ dependencies.
 
 The pure-numerical core of every project has a real known-answer test suite that
 passes with only `numpy`, `pandas`, and `pytest` installed. That is what the
-continuous integration runs on every push, across all fourteen projects.
+continuous integration runs on every push, across all twenty-four projects.
 
 - **Spatial cores:** index math, equity statistics, Moran's I and the local
   cluster statistics, segmentation metrics and tiling, harmonic decomposition and
@@ -121,5 +158,3 @@ script. Keeping these identical across every folder is deliberate.
 ## License
 
 MIT, on each project. See the `LICENSE` file inside each folder.
-</content>
-</invoke>
