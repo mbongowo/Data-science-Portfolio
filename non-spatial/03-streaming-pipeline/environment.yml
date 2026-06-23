@@ -1,0 +1,25 @@
+name: aq-streaming
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10,<3.13
+  # Core (the tested pure-Python pipeline)
+  - numpy>=1.24
+  - pandas>=2.0
+  - pyyaml>=6.0
+  # Streaming stack
+  - requests>=2.31
+  - kafka-python>=2.0
+  - pyspark>=3.5
+  - duckdb>=1.0
+  - pyarrow>=15.0
+  - streamlit>=1.36
+  # Dev / CI
+  - pytest>=8.0
+  - ruff>=0.6
+  - mypy>=1.10
+  - pip
+  - pip:
+      # Azure path (opt-in, costs money):
+      # - azure-eventhub>=5.11
+      []

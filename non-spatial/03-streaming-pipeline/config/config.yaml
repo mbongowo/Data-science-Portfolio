@@ -1,0 +1,58 @@
+# Configuration for the air-quality streaming & alerting pipeline.
+# The code reads "how" the stream is windowed and how alerts fire from here.
+# Durations are in seconds unless noted. The demo synthesises its OWN seeded
+# stream (it does not read this file); these values document the live pipeline
+# the docker-compose stack would run.
+
+# --------------------------------------------------------------------------- #
+# Stations — Cameroon cities the live producer polls from Open-Meteo.
+# --------------------------------------------------------------------------- #
+stations:
+  - name: "Douala"
+    lat: 4.0511
+    lon: 9.7679
+  - name: "Yaounde"
+    lat: 3.8480
+    lon: 11.5021
+  - name: "Bamenda"
+    lat: 5.9631
+    lon: 10.1591
+  - name: "Garoua"
+    lat: 9.3017
+    lon: 13.3921
+
+# --------------------------------------------------------------------------- #
+# Pollutant thresholds
+# --------------------------------------------------------------------------- #
+thresholds:
+  # WHO 2021 PM2.5 24-hour air-quality guideline (micrograms/m3).
+  who_pm25_24h: 15.0
+  # WHO 2021 PM10 24-hour guideline (micrograms/m3).
+  who_pm10_24h: 45.0
+  # AQI category at/above which an alert fires (EPA scale).
+  alert_from_category: "Unhealthy for Sensitive Groups"
+
+# --------------------------------------------------------------------------- #
+# Windows & spike detection
+# --------------------------------------------------------------------------- #
+windows:
+  window_seconds: 3600        # 1-hour tumbling windows
+  spark_window: "1 hour"      # Spark interval string equivalent
+
+spike:
+  z: 3.0                      # std above the rolling mean that flags a spike
+  lookback: 12                # readings of history the spike rule examines
+
+# --------------------------------------------------------------------------- #
+# Alert engine
+# --------------------------------------------------------------------------- #
+alerts:
+  cooldown_seconds: 21600     # 6 h — suppress repeat (station, rule) alerts
+
+# --------------------------------------------------------------------------- #
+# Kafka (the live streaming stack)
+# --------------------------------------------------------------------------- #
+kafka:
+  bootstrap_servers: "localhost:9092"
+  topic: "aqstream.readings"
+  consumer_group: "aqstream"
