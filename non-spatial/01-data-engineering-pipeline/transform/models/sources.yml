@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw daily weather landed by `weatherpipe build` (Open-Meteo archive ->
+      partitioned lake -> warehouse) into the raw schema.
+    schema: raw
+    # Source freshness: Open-Meteo's archive lags ~5 days. Warn after 6 days,
+    # error after 8. The orchestration layer can mirror this as a gate.
+    loaded_at_field: date
+    freshness:
+      warn_after: { count: 6, period: day }
+      error_after: { count: 8, period: day }
+    tables:
+      - name: weather
+        description: "One row per station/day: min/max/mean temperature and precip."
+        columns:
+          - name: station
+            description: "City name (Douala, Yaounde, Maroua, Garoua, Bamenda)."
+          - name: date
+            description: "Observation date (daily grain)."
+          - name: tmin_c
+            description: "Daily minimum 2m air temperature, degrees Celsius."
+          - name: tmax_c
+            description: "Daily maximum 2m air temperature, degrees Celsius."
+          - name: tmean_c
+            description: "Daily mean 2m air temperature, degrees Celsius."
+          - name: precip_mm
+            description: "Daily total precipitation, millimetres."

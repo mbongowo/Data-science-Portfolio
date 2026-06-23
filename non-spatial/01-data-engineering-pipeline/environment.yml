@@ -1,0 +1,27 @@
+name: weather-de-pipeline
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10,<3.13
+  # Core
+  - numpy>=1.24
+  - pandas>=2.0
+  - pyyaml>=6.0
+  # Heavy group
+  - requests>=2.31
+  - duckdb>=1.0
+  - prefect>=2.16
+  - streamlit>=1.30
+  - pyarrow>=15.0
+  - matplotlib>=3.8
+  # Dev / CI
+  - pytest>=8.0
+  - ruff>=0.6
+  - pip
+  - pip:
+      # dbt is best installed via pip to keep the adapter versions aligned.
+      - dbt-core>=1.7
+      - dbt-duckdb>=1.7
+      # Azure path (opt-in, costs money):
+      # - dbt-sqlserver>=1.7
+      # - azure-storage-file-datalake>=12.14

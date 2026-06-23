@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored — never
+# commit real values. The password is sensitive; prefer the TF_VAR_ env var:
+#
+#   export TF_VAR_sql_admin_password='<a-strong-password>'   # bash
+#   $env:TF_VAR_sql_admin_password = '<a-strong-password>'   # PowerShell
+
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "rg-cameroon-weather"
+location            = "westeurope"
+
+# Globally-unique storage account name = this prefix + a random suffix.
+storage_account_prefix = "stcmrweather"
+
+sql_server_prefix = "sql-cmr-weather"
+sql_database_name = "weather_dwh"
+sql_admin_login   = "weatheradmin"
+# sql_admin_password = "set-via-TF_VAR_sql_admin_password-instead"
+
+# Optional: your public IP, to reach the SQL server from your machine.
+client_ip_address = ""

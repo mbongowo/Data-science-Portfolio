@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: daily_weather
+    description: "Curated daily grain: one row per station/day with a surrogate key."
+    columns:
+      - name: weather_key
+        description: "Surrogate key (hash of station + date). Warehouse-owned PK."
+        tests:
+          - not_null
+          - unique
+      - name: station
+        description: "City name."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Douala", "Yaounde", "Maroua", "Garoua", "Bamenda"]
+      - name: date
+        description: "Observation date."
+        tests:
+          - not_null
+      - name: tmin_c
+        description: "Daily minimum temperature, Celsius."
+        tests:
+          - not_null
+          # Plausible physical range for Cameroon (and anywhere on Earth).
+          - dbt_utils.accepted_range:
+              min_value: -60
+              max_value: 60
+              inclusive: true
+      - name: tmax_c
+        description: "Daily maximum temperature, Celsius."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -60
+              max_value: 60
+              inclusive: true
+      - name: precip_mm
+        description: "Daily total precipitation, mm."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+  - name: monthly_weather
+    description: >
+      Per station/month aggregate read by the dashboard: mean/min/max
+      temperature, total precipitation, rain-day count and record count.
+    columns:
+      - name: station
+        description: "City name."
+        tests:
+          - not_null
+          # Every monthly row's station must exist in the daily mart.
+          - relationships:
+              to: ref('daily_weather')
+              field: station
+      - name: tmean_mean
+        description: "Mean of daily mean temperature over the month."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -60
+              max_value: 60
+              inclusive: true
+      - name: precip_total_mm
+        description: "Total precipitation over the month, mm."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+      - name: rain_days
+        description: "Count of days with precipitation >= 1mm."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 31
+              inclusive: true
+      - name: record_count
+        description: "Number of daily rows aggregated into the month."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 31
+              inclusive: true

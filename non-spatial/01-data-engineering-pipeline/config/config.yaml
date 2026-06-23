@@ -1,0 +1,61 @@
+# Pipeline configuration for the Cameroon weather pipeline.
+#
+# NOTE: the demo (`weatherpipe demo`) synthesizes its own seeded data and does
+# NOT read this file. This config drives the real `ingest` / `build` path against
+# the Open-Meteo API and your chosen warehouse.
+
+# --------------------------------------------------------------------------- #
+# Stations: five Cameroon cities (name, latitude, longitude).
+# --------------------------------------------------------------------------- #
+stations:
+  - name: Douala
+    lat: 4.0511
+    lon: 9.7679
+  - name: Yaounde
+    lat: 3.8480
+    lon: 11.5021
+  - name: Maroua
+    lat: 10.5910
+    lon: 14.3159
+  - name: Garoua
+    lat: 9.3017
+    lon: 13.3921
+  - name: Bamenda
+    lat: 5.9597
+    lon: 10.1494
+
+# --------------------------------------------------------------------------- #
+# Date range for the historical pull (Open-Meteo archive lags ~5 days).
+# --------------------------------------------------------------------------- #
+date_range:
+  start: "2023-01-01"
+  end: "2023-12-31"
+
+# --------------------------------------------------------------------------- #
+# Source.
+# --------------------------------------------------------------------------- #
+source: open-meteo
+
+# --------------------------------------------------------------------------- #
+# Lake (partitioned Parquet on the free path; ADLS Gen2 on the Azure path).
+# --------------------------------------------------------------------------- #
+lake:
+  root: "data/lake"
+
+# --------------------------------------------------------------------------- #
+# Validation thresholds (mirror the dbt accepted_range tests).
+# --------------------------------------------------------------------------- #
+validation:
+  temp_min_c: -60
+  temp_max_c: 60
+  precip_min_mm: 0
+  rain_day_mm: 1.0
+
+# --------------------------------------------------------------------------- #
+# Warehouse target: `duckdb` (free default) or `azure` (opt-in, costs money).
+# Switch the dbt target accordingly (transform/profiles.example.yml).
+# --------------------------------------------------------------------------- #
+warehouse:
+  target: duckdb
+  duckdb_path: "data/warehouse.duckdb"
+  raw_schema: raw

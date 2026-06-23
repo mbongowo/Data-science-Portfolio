@@ -1,0 +1,28 @@
+# pip fallback. Prefer conda (environment.yml) for a reproducible environment.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+# Core (the tested, importable pipeline core needs only these + stdlib)
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# Heavy group: ingestion, warehouse, dbt, orchestration, dashboard
+requests>=2.31
+duckdb>=1.0
+dbt-core>=1.7
+dbt-duckdb>=1.7
+prefect>=2.16
+streamlit>=1.30
+pyarrow>=15.0
+matplotlib>=3.8
+
+# Azure group (the opt-in cloud path; uncomment to deploy to Azure):
+# dbt-sqlserver>=1.7
+# azure-storage-file-datalake>=12.14
+
+# Dev / CI
+pytest>=8.0
+ruff>=0.6

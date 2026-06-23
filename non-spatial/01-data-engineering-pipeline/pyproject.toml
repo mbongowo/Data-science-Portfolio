@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "weatherpipe"
+version = "0.1.0"
+description = "Cameroon weather data pipeline: ingest from Open-Meteo into a partitioned lake, load a warehouse, transform with dbt marts + tests, orchestrate, and dashboard. Free on DuckDB or opt-in on Azure via Terraform."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+keywords = ["data-engineering", "dbt", "duckdb", "terraform", "azure", "prefect", "open-meteo", "lakehouse", "weather"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Database",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+pipeline = [
+    "requests>=2.31",
+    "duckdb>=1.0",
+    "prefect>=2.16",
+    "streamlit>=1.30",
+    "pyarrow>=15.0",
+    "matplotlib>=3.8",
+]
+dbt = [
+    "dbt-core>=1.7",
+    "dbt-duckdb>=1.7",
+]
+azure = [
+    "dbt-sqlserver>=1.7",
+    "azure-storage-file-datalake>=12.14",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+weatherpipe = "weatherpipe.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/non-spatial/01-data-engineering-pipeline"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/weatherpipe"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W", "N", "C4", "SIM"]
+ignore = ["N803", "N806"]  # allow short upper-case names (DataFrames, keys)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

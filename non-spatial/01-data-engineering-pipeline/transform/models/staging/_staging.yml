@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_weather
+    description: "Clean, typed daily weather. One row per station/day."
+    columns:
+      - name: station
+        description: "City name."
+        tests:
+          - not_null
+      - name: date
+        description: "Observation date."
+        tests:
+          - not_null
+      - name: tmean_c
+        description: "Daily mean temperature, Celsius."
+        tests:
+          - not_null
+      - name: precip_mm
+        description: "Daily total precipitation, mm."
+        tests:
+          - not_null

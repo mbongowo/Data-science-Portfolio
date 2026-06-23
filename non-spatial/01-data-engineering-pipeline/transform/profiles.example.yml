@@ -1,0 +1,34 @@
+# Copy this to ~/.dbt/profiles.yml (or pass --profiles-dir transform) and adjust.
+#
+# Two targets ship here:
+#   * duckdb (default) — the free local path: one file, no infrastructure.
+#   * azure            — the opt-in cloud path: dbt-sqlserver against the Azure
+#                        SQL Database that terraform/azure provisions. COSTS MONEY.
+#
+# The models are warehouse-agnostic and do not change between targets.
+
+weather_dwh:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      # Same file `weatherpipe build` writes; raw.weather is the source.
+      path: "../data/warehouse.duckdb"
+      schema: main
+      threads: 4
+
+    # Opt-in Azure target. Reads credentials from environment variables set from
+    # .env (see .env.example) so no secret is committed. Requires the
+    # dbt-sqlserver adapter (`pip install dbt-sqlserver`).
+    azure:
+      type: sqlserver
+      driver: "ODBC Driver 18 for SQL Server"
+      server: "{{ env_var('AZURE_SQL_SERVER') }}"
+      port: 1433
+      database: "{{ env_var('AZURE_SQL_DB') }}"
+      schema: dbo
+      user: "{{ env_var('AZURE_SQL_USER') }}"
+      password: "{{ env_var('AZURE_SQL_PASSWORD') }}"
+      encrypt: true
+      trust_cert: false
+      threads: 4
