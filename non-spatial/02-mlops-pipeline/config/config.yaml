@@ -1,0 +1,63 @@
+# Configuration for the rain-day MLOps pipeline.
+#
+# NOTE: the demo (`mlpipe demo`) synthesizes its own seeded weather data and does
+# NOT read this file. This config drives the real `train` / `serve` / `monitor`
+# path against a weather CSV (e.g. the output of the sibling
+# non-spatial/01-data-engineering-pipeline project for a Cameroon station).
+
+# --------------------------------------------------------------------------- #
+# Station the model is trained for (metadata; the CSV is single-station).
+# --------------------------------------------------------------------------- #
+station:
+  name: Douala
+  lat: 4.0511
+  lon: 9.7679
+
+# --------------------------------------------------------------------------- #
+# Data: a daily weather CSV with date, tmean_c, precip_mm columns.
+# --------------------------------------------------------------------------- #
+data:
+  weather_csv: "data/douala_daily.csv"
+  train_frac: 0.8   # time-ordered split; the later 20% is the test set
+
+# --------------------------------------------------------------------------- #
+# Feature engineering (mirrors src/mlpipe/features.py defaults).
+# --------------------------------------------------------------------------- #
+features:
+  rain_day_mm: 1.0       # precip >= this counts as a rain day (the target)
+  lags: [1, 2, 3]
+  rolling_windows: [3, 7]
+
+# --------------------------------------------------------------------------- #
+# Model hyperparameters (pure-numpy logistic regression baseline).
+# --------------------------------------------------------------------------- #
+model:
+  lr: 0.3
+  epochs: 800
+  l2: 0.001
+  seed: 0
+
+# --------------------------------------------------------------------------- #
+# Drift thresholds (Population Stability Index).
+#   < 0.1  : no significant change
+#   0.1-0.2: moderate shift, worth a look
+#   >= 0.2 : major shift, investigate / consider retraining
+# --------------------------------------------------------------------------- #
+drift:
+  psi_minor: 0.1
+  psi_major: 0.2
+
+# --------------------------------------------------------------------------- #
+# Experiment tracking target: `local` (free, mlruns/) or `azureml` (opt-in,
+# costs money). For azureml, set MLFLOW_TRACKING_URI to the workspace URI
+# (see azure/README.md).
+# --------------------------------------------------------------------------- #
+tracking:
+  target: local
+  experiment: rain-day
+
+# --------------------------------------------------------------------------- #
+# Output directory for the model artifact and reports.
+# --------------------------------------------------------------------------- #
+output:
+  dir: "outputs"

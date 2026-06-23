@@ -1,0 +1,45 @@
+# Free, local MLOps stack: an MLflow tracking server plus the FastAPI inference
+# service. Nothing here costs money or leaves your machine. Validate with
+# `docker compose config`; bring it up with `docker compose up`.
+#
+#   docker compose up mlflow        # tracking UI at http://localhost:5000
+#   docker compose up inference     # model service at http://localhost:8000
+#
+# The `monitoring` step (Evidently drift dashboards) is run on demand rather than
+# as a long-lived service — see the note at the bottom and the README.
+
+services:
+  # MLflow tracking server backed by a local SQLite store and an artifact dir.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.1
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow
+
+  # FastAPI rain-day inference service, built from the project Dockerfile.
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      MODEL_PATH: /app/outputs/model.pkl
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the trained model in; `mlpipe train` writes outputs/model.pkl.
+      - ./outputs:/app/outputs
+    depends_on:
+      - mlflow
+
+  # Monitoring note: drift reporting is a batch job, not a daemon. Run it with
+  # `mlpipe monitor --reference ref.csv --current recent.csv` (pure-numpy PSI/KS)
+  # or `mlpipe.monitor.drift_dashboard(...)` for the Evidently HTML report. Wire
+  # it to a schedule (cron / Prefect) against fresh data when you go to production.

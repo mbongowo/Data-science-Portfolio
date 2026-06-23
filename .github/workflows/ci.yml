@@ -25,6 +25,7 @@ jobs:
           - spatial/04-leafmap-dashboard
           - spatial/05-change-detection
           - non-spatial/01-data-engineering-pipeline
+          - non-spatial/02-mlops-pipeline
           - non-spatial/clickstream-pipeline
           - non-spatial/log-anomaly
           - non-spatial/als-recommender

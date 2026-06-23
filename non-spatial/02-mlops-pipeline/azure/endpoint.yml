@@ -1,0 +1,19 @@
+# Skeleton Azure ML managed online endpoint for the rain-day model.
+# OPT-IN and BILLABLE while it exists — see azure/README.md. Edit `model` and
+# `environment` to point at the run you registered with `mlpipe.tracking`.
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineEndpoint.schema.json
+name: rainday
+auth_mode: key
+
+# A deployment under the endpoint (referenced once the endpoint exists). Kept
+# here as a comment so this single file documents the whole shape:
+#
+# deployment (azure/deployment.yml):
+#   $schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+#   name: numpy-baseline
+#   endpoint_name: rainday
+#   model: azureml:rain-day-classifier@latest   # registered via register_best
+#   instance_type: Standard_DS2_v2              # SMALL on purpose; still billable
+#   instance_count: 1
+#   environment:
+#     image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04
