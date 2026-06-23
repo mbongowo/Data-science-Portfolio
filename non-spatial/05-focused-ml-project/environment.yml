@@ -1,0 +1,20 @@
+name: portfolio-rag
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10,<3.13
+  # Core (the tested pure-numpy retrieval core)
+  - numpy>=1.24
+  - pandas>=2.0
+  - pyyaml>=6.0
+  # App
+  - streamlit>=1.32
+  # Dev / CI
+  - pytest>=8.0
+  - ruff>=0.6
+  - pip
+  # LLM extras are optional and installed via pip when you want generated
+  # answers (extractive answers need none of these):
+  # - pip:
+  #     - openai>=1.30          # OpenAI and Azure OpenAI providers
+  #     - transformers>=4.40    # local provider

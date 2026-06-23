@@ -1,0 +1,58 @@
+[
+  {
+    "question": "Which project detects vegetation stress using Sentinel-2 NDVI anomalies against a baseline?",
+    "relevant_doc_id": "eo-monitor"
+  },
+  {
+    "question": "How is travel time to health facilities computed and how is coverage equity measured with a Gini coefficient and 2SFCA?",
+    "relevant_doc_id": "access-to-care"
+  },
+  {
+    "question": "Which project uses Moran's I, LISA and Getis-Ord Gi star to test spatial autocorrelation and find hotspots?",
+    "relevant_doc_id": "spatial-hotspots"
+  },
+  {
+    "question": "Where is a U-Net with a ResNet-34 encoder trained on SpaceNet to extract building footprints?",
+    "relevant_doc_id": "geoai-segmentation"
+  },
+  {
+    "question": "Which project finds fire and deforestation breakpoints with a harmonic model and CUSUM on NDVI time series?",
+    "relevant_doc_id": "disturbance-detection"
+  },
+  {
+    "question": "What Streamlit app lets you draw an area of interest and render 34 spectral indices from Sentinel-2 imagery?",
+    "relevant_doc_id": "eo-explorer-app"
+  },
+  {
+    "question": "Which project uses the Segment Anything Model to mask and quantify buildings in Douala imagery?",
+    "relevant_doc_id": "segment-geospatial"
+  },
+  {
+    "question": "Where is transfer learning compared between pretrained and from-scratch ResNet18 for land-cover classification?",
+    "relevant_doc_id": "torchgeo-landcover"
+  },
+  {
+    "question": "Which project maps floods from Sentinel-1 SAR backscatter using Otsu thresholding?",
+    "relevant_doc_id": "change-detection"
+  },
+  {
+    "question": "Which pipeline ingests Open-Meteo weather into a Parquet lake and transforms it with dbt orchestrated by Prefect?",
+    "relevant_doc_id": "data-engineering-pipeline"
+  },
+  {
+    "question": "Where is feature drift detected with the Population Stability Index and KS test for a rain-day classifier?",
+    "relevant_doc_id": "mlops-pipeline"
+  },
+  {
+    "question": "Which project raises real-time air-quality alerts with AQI conversion and a per-station cooldown to stop alert storms?",
+    "relevant_doc_id": "streaming-pipeline"
+  },
+  {
+    "question": "Which recommender uses Alternating Least Squares matrix factorisation on MovieLens with NDCG metrics?",
+    "relevant_doc_id": "als-recommender"
+  },
+  {
+    "question": "Where are PageRank, label propagation and modularity run on a stochastic block model and Spark GraphFrames?",
+    "relevant_doc_id": "graph-analysis"
+  }
+]

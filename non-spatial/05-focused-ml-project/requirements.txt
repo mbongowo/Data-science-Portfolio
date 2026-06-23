@@ -1,0 +1,25 @@
+# pip fallback. The tested retrieval core (chunk + index + evaluate + generate's
+# extractive path + pipeline + demo) needs only numpy; pandas/pyyaml are used by
+# the app and config. The heavy group powers the Streamlit app. The LLM extras
+# are OPTIONAL and only needed for generated (non-extractive) answers.
+#
+#   python -m venv .venv && . .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#   pip install -e .
+
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# App
+streamlit>=1.32
+
+# LLM extras (optional — uncomment the one you use):
+# openai>=1.30                 # OpenAI provider (OPENAI_API_KEY)
+# openai>=1.30                 # Azure OpenAI provider uses the same package (AzureOpenAI client)
+# transformers>=4.40           # local provider
+# sentence-transformers>=2.2   # optional: swap TF-IDF for dense embeddings
+
+# Dev / CI
+pytest>=8.0
+ruff>=0.6

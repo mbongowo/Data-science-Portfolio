@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ragqa"
+version = "0.1.0"
+description = "Portfolio RAG: ask natural-language questions over a multi-project portfolio, with a pure-numpy TF-IDF retrieval core, extractive answers with citations, and an optional pluggable LLM provider (OpenAI / Azure OpenAI / local)."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Joseph Mbuh", email = "mbuhjoe48@gmail.com" }]
+keywords = ["rag", "retrieval-augmented-generation", "tf-idf", "information-retrieval", "nlp", "question-answering", "streamlit"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+app = [
+    "streamlit>=1.32",
+]
+llm = [
+    "openai>=1.30",
+]
+local = [
+    "transformers>=4.40",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+ragqa = "ragqa.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mbongowo/Data-science-Portfolio/tree/main/non-spatial/05-focused-ml-project"
+Repository = "https://github.com/mbongowo/Data-science-Portfolio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ragqa"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W", "N", "C4", "SIM"]
+ignore = ["N803", "N806"]  # allow math-style names (X, B, etc.)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]
+# The Streamlit entrypoint must bootstrap sys.path before importing ragqa.
+"app/streamlit_app.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

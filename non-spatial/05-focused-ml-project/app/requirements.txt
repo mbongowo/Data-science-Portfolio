@@ -1,0 +1,15 @@
+# Deploy manifest for Streamlit Community Cloud.
+#
+# Cloud installs from this file (it sits next to the entrypoint streamlit_app.py).
+# Pick Python 3.12 in the deploy dialog's Advanced settings.
+#
+# The default extractive RAG needs only numpy / pandas / streamlit — it builds
+# the TF-IDF index at startup over the bundled corpus and quotes the best chunk,
+# so there is no LLM library and no API key required to run the app.
+#
+# OpenAI / Azure OpenAI are OPTIONAL extras for generated answers; add
+# `openai>=1.30` and set the relevant keys to enable them.
+
+streamlit>=1.32
+numpy>=1.24
+pandas>=2.0

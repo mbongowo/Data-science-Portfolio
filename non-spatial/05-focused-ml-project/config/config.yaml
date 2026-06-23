@@ -1,0 +1,40 @@
+# Configuration for the portfolio RAG system.
+# The demo reads the bundled corpus directly and does not depend on this file;
+# these values document the chunking, retrieval and provider settings the app
+# and CLI use, and are the knobs to tune for your own corpus.
+
+# --------------------------------------------------------------------------- #
+# Corpus — the folder of markdown docs and the QA evaluation set.
+# --------------------------------------------------------------------------- #
+corpus:
+  dir: corpus                 # one markdown file per document
+  qa_eval: corpus/qa_eval.json  # (question, relevant_doc_id) pairs for eval
+
+# --------------------------------------------------------------------------- #
+# Chunking — overlapping word windows. stride = size - overlap.
+# --------------------------------------------------------------------------- #
+chunk:
+  size: 60        # words per chunk
+  overlap: 15     # words shared with the previous chunk
+
+# --------------------------------------------------------------------------- #
+# Retrieval — TF-IDF cosine top-k, with optional MMR diversity re-ranking.
+# --------------------------------------------------------------------------- #
+retrieval:
+  k: 4            # chunks returned per query
+  use_mmr: true   # re-rank candidates for diversity
+  mmr_lambda: 0.5 # 1.0 = pure relevance, 0.0 = pure diversity
+
+# --------------------------------------------------------------------------- #
+# Provider — how an answer is produced from the retrieved chunks.
+#   extractive    : free, no key, quotes the best chunk (default)
+#   openai        : OpenAI chat completions   (needs OPENAI_API_KEY)
+#   azure_openai  : Azure OpenAI deployment   (needs AZURE_OPENAI_* env vars)
+#   local         : local transformers model  (no key, downloads a model)
+# --------------------------------------------------------------------------- #
+provider: extractive
+
+models:
+  openai: gpt-4o-mini
+  azure_openai: ""   # set to your Azure deployment name
+  local: gpt2
