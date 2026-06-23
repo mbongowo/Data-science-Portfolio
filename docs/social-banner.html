@@ -1,0 +1,73 @@
+<!doctype html>
+<!--
+  GitHub social-preview banner (1280x640) for this repo.
+  Render to PNG: serve this folder and screenshot at a 1280x640 viewport, e.g.
+    python -m http.server 8753
+    # open http://localhost:8753/social-banner.html in a 1280x640 browser viewport and capture
+  Then upload the PNG at: repo - Settings - General - Social preview.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1280px;height:640px;overflow:hidden}
+  .b{
+    width:1280px;height:640px;position:relative;
+    background:
+      radial-gradient(1100px 700px at 82% 28%, rgba(45,212,191,.13), transparent 62%),
+      linear-gradient(135deg,#0B3D3A 0%,#0a3137 42%,#062033 100%);
+    font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;color:#fff;
+  }
+  .grid{
+    position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+    background-size:42px 42px;
+    -webkit-mask:linear-gradient(90deg,transparent 40%,#000 95%);
+            mask:linear-gradient(90deg,transparent 40%,#000 95%);
+  }
+  .motif{position:absolute;right:-30px;top:50%;transform:translateY(-50%);opacity:.30}
+  .wrap{position:absolute;left:96px;top:50%;transform:translateY(-50%)}
+  .eyebrow{font-size:17px;letter-spacing:5px;color:#5eead4;font-weight:600;text-transform:uppercase;margin-bottom:20px}
+  .name{font-size:98px;font-weight:800;line-height:.95;letter-spacing:-2px}
+  .bar{width:104px;height:7px;border-radius:4px;background:linear-gradient(90deg,#2DD4BF,#14B8A6);margin:24px 0 22px;box-shadow:0 0 26px rgba(45,212,191,.65)}
+  .role{font-size:35px;font-weight:600;color:#e6f5f2;margin-bottom:26px}
+  .stat{font-size:22px;color:#d3ece8;font-weight:500;margin-bottom:9px}
+  .tech{font-size:19px;color:#84bdb6;font-weight:500}
+  .handle{position:absolute;right:48px;bottom:34px;font-size:18px;color:#6ee7d8;font-weight:600;letter-spacing:.3px}
+</style>
+</head>
+<body>
+  <div class="b">
+    <div class="grid"></div>
+    <svg class="motif" width="600" height="640" viewBox="0 0 600 640">
+      <g fill="none" stroke="#2DD4BF" stroke-width="1.4">
+        <circle cx="410" cy="320" r="48"/>
+        <circle cx="410" cy="320" r="96"/>
+        <circle cx="410" cy="320" r="148"/>
+        <circle cx="410" cy="320" r="206"/>
+        <circle cx="410" cy="320" r="270"/>
+        <circle cx="410" cy="320" r="340"/>
+      </g>
+      <g fill="#5eead4">
+        <circle cx="410" cy="320" r="4"/>
+        <circle cx="458" cy="320" r="3"/>
+        <circle cx="306" cy="274" r="3"/>
+        <circle cx="556" cy="392" r="3"/>
+        <circle cx="410" cy="114" r="3"/>
+      </g>
+    </svg>
+    <div class="wrap">
+      <div class="eyebrow">Spatial &amp; Big-Data Science</div>
+      <div class="name">Joseph Mbuh</div>
+      <div class="bar"></div>
+      <div class="role">Data-Science Portfolio</div>
+      <div class="stat">24 projects &nbsp;&middot;&nbsp; ~800 CI-tested cores &nbsp;&middot;&nbsp; 4 live apps</div>
+      <div class="tech">STAC / Sentinel-2 &nbsp;&middot;&nbsp; GeoAI &nbsp;&middot;&nbsp; Kafka / Spark &nbsp;&middot;&nbsp; dbt</div>
+    </div>
+    <div class="handle">github.com/mbongowo</div>
+  </div>
+</body>
+</html>
