@@ -20,8 +20,10 @@ map, and read off the most underserved settlements.
 
 ## Result first
 
-The bundled demo synthesizes ~200 populated places and ~20 facilities inside a
-Cameroon bounding box (seeded, reproducible), then runs the real pipeline:
+The reproducible `demo` command synthesizes ~200 populated places and ~20
+facilities inside a Cameroon bounding box (seeded), then runs the real pipeline.
+(The **deployed app** instead loads ~700 real health facilities and ~640
+populated places for Cameroon from OpenStreetMap — see Results.)
 
 ```text
 clinic-access demo (seeded synthetic Cameroon points, straight-line distance)
@@ -126,7 +128,8 @@ and set **Python version 3.12** before clicking Deploy. Cloud installs from
 
 ## Use your own area / data
 
-The default is the synthetic Cameroon sample, but the app is data-driven:
+The default is **real Cameroon data from OpenStreetMap** (≈700 health facilities,
+≈640 populated places), but the app is fully data-driven:
 
 - **Upload your own CSVs** from the sidebar — a *places* CSV with `lat`, `lon`,
   `population` (and ideally a `name`), and a *facilities* CSV with `lat`, `lon`
@@ -141,18 +144,32 @@ The default is the synthetic Cameroon sample, but the app is data-driven:
 - Demo (seeded synthetic, 200 places / 20 facilities): median nearest **22.9 km**,
   **41%** of population beyond 25 km, farthest place **229 km** (see the block
   above; full breakdown in `outputs/summary.json`).
-- _Real Cameroon finding: to be added once run against a real facility list
-  (e.g. Healthsites.io) — placeholder._
+- **Live app (real OpenStreetMap data, ≈700 facilities / ≈640 places):** mean
+  nearest facility **29.8 km**, median **20.7 km**; the farthest mapped populated
+  place is **Mbaïboum (~196 km)** from any mapped facility — subject to OSM
+  coverage gaps (see limitations).
 - **Deployed app:** <https://mbongowo-dat-spatial04-leafmap-dashboardappstreamlit-app-mclndk.streamlit.app/>
+
+## Data sources
+
+- **Health facilities & populated places:** [OpenStreetMap](https://www.openstreetmap.org)
+  via the Overpass API — © OpenStreetMap contributors, licensed under the
+  [ODbL](https://opendatacommons.org/licenses/odbl/). Curated Cameroon exports of
+  the same data are on [HDX (HOTOSM)](https://data.humdata.org/dataset/hotosm_cmr_health_facilities)
+  and [Healthsites.io](https://healthsites.io/map?country=Cameroon).
+- **Basemap tiles:** OpenStreetMap / CARTO.
 
 ## Limitations
 
 - **Straight-line distance, not road access.** Haversine ignores roads, rivers,
   and terrain, so it understates real travel burden. Use `access-to-care` for
   road-network travel time.
-- **Synthetic / sample data.** The bundled CSVs and the demo are *synthetic but
-  plausible* Cameroon coordinates, not a measured dataset. Numbers are
-  illustrative.
+- **Data provenance.** The bundled CSVs are **real OpenStreetMap** data
+  (© OpenStreetMap contributors, ODbL): Cameroon health facilities and populated
+  places, sampled to keep the map responsive. OSM coverage is uneven — some real
+  clinics are missing and some coordinates are imprecise. The separate `demo`
+  command uses small *synthetic* points purely for a reproducible, dependency-free
+  check.
 - **Facility-list completeness.** Results are only as good as the facility
   inputs; missing clinics make places look more underserved than they are, and
   closed ones the reverse.

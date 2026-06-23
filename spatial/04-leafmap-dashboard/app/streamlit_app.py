@@ -4,7 +4,7 @@ Run locally with::
 
     streamlit run app/streamlit_app.py
 
-The app loads bundled synthetic Cameroon sample data by default (or your own
+The app loads bundled real Cameroon data from OpenStreetMap by default (or your own
 uploaded CSVs), computes each place's straight-line (haversine) distance to the
 nearest health facility with the reused ``clinicaccess`` core, and draws an
 interactive leafmap map: facilities as markers, places coloured by their
@@ -88,7 +88,8 @@ def main() -> None:
     with st.sidebar:
         st.header("Data")
         st.markdown(
-            "Using the **bundled synthetic Cameroon sample** by default. "
+            "Using **real Cameroon health facilities and populated places from "
+            "OpenStreetMap** by default (© OpenStreetMap contributors, ODbL). "
             "Upload your own CSVs to screen another area."
         )
         places_file = st.file_uploader(
