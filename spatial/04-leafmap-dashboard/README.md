@@ -8,6 +8,11 @@
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=mbongowo/Data-science-Portfolio&branch=main&mainModule=spatial/04-leafmap-dashboard/app/streamlit_app.py)
 
+**▶ Live demo:** <https://mbongowo-dat-spatial04-leafmap-dashboardappstreamlit-app-mclndk.streamlit.app/>
+> Streamlit Community Cloud (free tier — it sleeps after inactivity, so the first load may take a few seconds to wake).
+
+![Clinic-access dashboard screenshot](docs/screenshot.png)
+
 An interactive **leafmap + Streamlit** dashboard that answers one local question:
 **which populated places in Cameroon are farthest from a health facility?** Pick
 an "underserved" distance threshold, see the places that fall beyond it on the
@@ -117,7 +122,7 @@ the `main` branch, and the main file path
 and set **Python version 3.12** before clicking Deploy. Cloud installs from
 `app/requirements.txt` (next to the entrypoint).
 
-> **Live demo:** _add the deployed URL here after the first deploy._
+> **Live demo:** <https://mbongowo-dat-spatial04-leafmap-dashboardappstreamlit-app-mclndk.streamlit.app/>
 
 ## Use your own area / data
 
@@ -138,7 +143,7 @@ The default is the synthetic Cameroon sample, but the app is data-driven:
   above; full breakdown in `outputs/summary.json`).
 - _Real Cameroon finding: to be added once run against a real facility list
   (e.g. Healthsites.io) — placeholder._
-- _Deployed app: link to be added after deploy — placeholder._
+- **Deployed app:** <https://mbongowo-dat-spatial04-leafmap-dashboardappstreamlit-app-mclndk.streamlit.app/>
 
 ## Limitations
 

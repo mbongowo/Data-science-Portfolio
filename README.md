@@ -86,7 +86,7 @@ runs and is tested in CI and a default area-of-interest you can swap for your ow
 | [`01-segment-geospatial`](./spatial/01-segment-geospatial) | Segment-Anything masks → counted/measured buildings & fields over Douala | [opengeos/segment-geospatial](https://github.com/opengeos/segment-geospatial) |
 | [`02-earth-engine-timeseries`](./spatial/02-earth-engine-timeseries) | Multi-year Sentinel-2 change / forest-loss; STAC-default (auth-free), geemap optional | [giswqs/geemap](https://github.com/giswqs/geemap) |
 | [`03-torchgeo-landcover`](./spatial/03-torchgeo-landcover) | Land-cover classification, pretrained-vs-from-scratch, with a model card | [microsoft/torchgeo](https://github.com/microsoft/torchgeo) |
-| [`04-leafmap-dashboard`](./spatial/04-leafmap-dashboard) | Deployable clinic-access dashboard (who is farthest from a clinic?) | [opengeos/leafmap](https://github.com/opengeos/leafmap) |
+| [`04-leafmap-dashboard`](./spatial/04-leafmap-dashboard) | Deployable clinic-access dashboard (who is farthest from a clinic?) **[▶ Live](https://mbongowo-dat-spatial04-leafmap-dashboardappstreamlit-app-mclndk.streamlit.app/)** | [opengeos/leafmap](https://github.com/opengeos/leafmap) |
 | [`05-change-detection`](./spatial/05-change-detection) | SAR flood mapping (Otsu + before/after), validated against an OCHA report | [robmarkcole/satellite-image-deep-learning](https://github.com/robmarkcole/satellite-image-deep-learning) |
 
 ### Non-spatial (`non-spatial/01–05`)
