@@ -1,0 +1,19 @@
+name: crop-ml-app
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10,<3.13
+  # Core (the tested pure-numpy recommender + the deployed app)
+  - numpy>=1.24
+  - pandas>=2.0
+  - pyyaml>=6.0
+  # App + optional stronger model + notebooks
+  - scikit-learn>=1.3
+  - joblib>=1.3
+  - streamlit>=1.32
+  - matplotlib>=3.7
+  - jupyterlab>=4.0
+  # Dev / CI
+  - pytest>=8.0
+  - ruff>=0.6
+  - pip

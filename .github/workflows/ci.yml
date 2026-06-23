@@ -27,6 +27,7 @@ jobs:
           - non-spatial/01-data-engineering-pipeline
           - non-spatial/02-mlops-pipeline
           - non-spatial/03-streaming-pipeline
+          - non-spatial/04-ml-web-app
           - non-spatial/clickstream-pipeline
           - non-spatial/log-anomaly
           - non-spatial/als-recommender

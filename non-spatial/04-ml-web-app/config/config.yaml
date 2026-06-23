@@ -1,0 +1,62 @@
+# Configuration for the crop recommender.
+# The demo synthesises its OWN seeded dataset (it does not read this file); these
+# values document the feature schema, ranges, crop set and model hyperparameters
+# the app and the optional real-data path use.
+
+# --------------------------------------------------------------------------- #
+# Features — the seven model inputs, with sensible min/max ranges for widgets.
+# --------------------------------------------------------------------------- #
+features:
+  - name: N            # soil nitrogen (kg/ha)
+    min: 0
+    max: 140
+  - name: P            # soil phosphorus (kg/ha)
+    min: 0
+    max: 140
+  - name: K            # soil potassium (kg/ha)
+    min: 0
+    max: 140
+  - name: temperature  # average temperature (degrees C)
+    min: 8
+    max: 44
+  - name: humidity     # relative humidity (%)
+    min: 10
+    max: 100
+  - name: ph           # soil pH
+    min: 3.5
+    max: 9.0
+  - name: rainfall     # rainfall (mm)
+    min: 20
+    max: 300
+
+label_column: label
+
+# --------------------------------------------------------------------------- #
+# Crops — the ten Cameroon-relevant crops the synthetic demo covers.
+# --------------------------------------------------------------------------- #
+crops:
+  - maize
+  - cassava
+  - plantain
+  - cocoa
+  - groundnut
+  - rice
+  - sorghum
+  - yam
+  - beans
+  - oil_palm
+
+# --------------------------------------------------------------------------- #
+# Model — pure-numpy SoftmaxClassifier hyperparameters.
+# --------------------------------------------------------------------------- #
+model:
+  lr: 0.5
+  epochs: 600
+  l2: 0.001
+  seed: 0
+
+# --------------------------------------------------------------------------- #
+# Split — stratified train / test fractions (must sum to 1).
+# --------------------------------------------------------------------------- #
+split:
+  fractions: [0.7, 0.3]

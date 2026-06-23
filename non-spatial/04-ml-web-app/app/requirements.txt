@@ -1,0 +1,12 @@
+# Deploy manifest for Streamlit Community Cloud.
+#
+# Cloud installs from this file (it sits next to the entrypoint streamlit_app.py).
+# Pick Python 3.12 in the deploy dialog's Advanced settings.
+#
+# The app trains the pure-numpy SoftmaxClassifier itself at startup on the
+# bundled synthetic sample, so deploy needs only numpy / pandas / streamlit —
+# there is no pre-trained binary and no scikit-learn at runtime.
+
+streamlit>=1.32
+numpy>=1.24
+pandas>=2.0
