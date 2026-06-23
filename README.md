@@ -96,7 +96,7 @@ runs and is tested in CI and a default area-of-interest you can swap for your ow
 | [`01-data-engineering-pipeline`](./non-spatial/01-data-engineering-pipeline) | Cameroon-weather ingest → warehouse → dbt → dashboard; DuckDB free or Azure | [DataTalksClub/data-engineering-zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) |
 | [`02-mlops-pipeline`](./non-spatial/02-mlops-pipeline) | Rain-day model with MLflow tracking, FastAPI/Docker serving, PSI/KS drift monitoring | [DataTalksClub/mlops-zoomcamp](https://github.com/DataTalksClub/mlops-zoomcamp) |
 | [`03-streaming-pipeline`](./non-spatial/03-streaming-pipeline) | Real-time air-quality streaming with EPA AQI and threshold/spike alerting | [damklis/DataEngineeringProject](https://github.com/damklis/DataEngineeringProject) |
-| [`04-ml-web-app`](./non-spatial/04-ml-web-app) | Deployable crop recommender (soil & climate → ranked crop) | [shsarv/Machine-Learning-Projects](https://github.com/shsarv/Machine-Learning-Projects) |
+| [`04-ml-web-app`](./non-spatial/04-ml-web-app) | Deployable crop recommender (soil & climate → ranked crop) **[▶ Live](https://mbongowo-data-s-non-spatial04-ml-web-appappstreamlit-app-l5yxjk.streamlit.app/)** | [shsarv/Machine-Learning-Projects](https://github.com/shsarv/Machine-Learning-Projects) |
 | [`05-focused-ml-project`](./non-spatial/05-focused-ml-project) | RAG question-answering over this portfolio's docs; free extractive, optional LLM | [ashishpatel26/500-…-Projects](https://github.com/ashishpatel26/500-AI-Machine-learning-Deep-learning-Computer-vision-NLP-Projects-with-code) |
 
 Several ship a deployable Streamlit app with an "Open in Streamlit" badge, and the

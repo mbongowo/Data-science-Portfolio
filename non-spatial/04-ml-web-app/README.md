@@ -6,6 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=mbongowo/Data-science-Portfolio&branch=main&mainModule=non-spatial/04-ml-web-app/app/streamlit_app.py)
 
+**▶ Live demo:** <https://mbongowo-data-s-non-spatial04-ml-web-appappstreamlit-app-l5yxjk.streamlit.app/>
+> Streamlit Community Cloud (free tier — it sleeps after inactivity, so the first load may take a few seconds to wake).
+
 Given soil nutrients (N, P, K), temperature, humidity, soil pH and rainfall, this
 app recommends the **best crop** with a **ranked top-3 and confidences**. The
 runnable, CI-tested model is a **pure-numpy multinomial (softmax) classifier**
@@ -122,7 +125,8 @@ Deploy free on **Streamlit Community Cloud**:
 - **Python version** (Advanced settings): **3.12**
 
 Cloud installs from `app/requirements.txt` (numpy / pandas / streamlit only — the
-app trains the model itself). Live URL: _add after first deploy_.
+app trains the model itself). **Live URL:**
+<https://mbongowo-data-s-non-spatial04-ml-web-appappstreamlit-app-l5yxjk.streamlit.app/>
 
 ---
 
@@ -165,7 +169,8 @@ The data layer (`croprec.data`) reads either dataset unchanged.
 | test macro-F1 | **0.8942** |
 | test top-3 accuracy | **0.9875** |
 
-Reproduce with `python -m croprec.cli demo`. Live app: _add link after deploy_.
+Reproduce with `python -m croprec.cli demo`. Live app:
+<https://mbongowo-data-s-non-spatial04-ml-web-appappstreamlit-app-l5yxjk.streamlit.app/>.
 
 ## Limitations
 
