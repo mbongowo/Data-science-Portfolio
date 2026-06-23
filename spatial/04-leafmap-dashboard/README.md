@@ -16,14 +16,18 @@
 An interactive **leafmap + Streamlit** dashboard that answers one local question:
 **which populated places in Cameroon are farthest from a health facility?** Pick
 an "underserved" distance threshold, see the places that fall beyond it on the
-map, and read off the most underserved settlements.
+map, and read off the most underserved settlements. **Drill down by region,
+division, or sub-division** to focus on one area, with administrative boundaries
+drawn for context (sub-division is Cameroon's lowest official level — there is no
+township boundary).
 
 ## Result first
 
 The reproducible `demo` command synthesizes ~200 populated places and ~20
 facilities inside a Cameroon bounding box (seeded), then runs the real pipeline.
-(The **deployed app** instead loads ~700 real health facilities and ~640
-populated places for Cameroon from OpenStreetMap — see Results.)
+(The **deployed app** instead loads **all ~2,070 real health facilities** and
+~1,290 populated places for Cameroon from OpenStreetMap, plus region and division
+boundaries — see Results.)
 
 ```text
 clinic-access demo (seeded synthetic Cameroon points, straight-line distance)
@@ -128,8 +132,9 @@ and set **Python version 3.12** before clicking Deploy. Cloud installs from
 
 ## Use your own area / data
 
-The default is **real Cameroon data from OpenStreetMap** (≈700 health facilities,
-≈640 populated places), but the app is fully data-driven:
+The default is **real Cameroon data from OpenStreetMap** (≈2,070 health
+facilities, ≈1,290 populated places) with region/division boundaries, but the app
+is fully data-driven:
 
 - **Upload your own CSVs** from the sidebar — a *places* CSV with `lat`, `lon`,
   `population` (and ideally a `name`), and a *facilities* CSV with `lat`, `lon`
@@ -144,9 +149,10 @@ The default is **real Cameroon data from OpenStreetMap** (≈700 health faciliti
 - Demo (seeded synthetic, 200 places / 20 facilities): median nearest **22.9 km**,
   **41%** of population beyond 25 km, farthest place **229 km** (see the block
   above; full breakdown in `outputs/summary.json`).
-- **Live app (real OpenStreetMap data, ≈700 facilities / ≈640 places):** mean
-  nearest facility **29.8 km**, median **20.7 km**; the farthest mapped populated
-  place is **Mbaïboum (~196 km)** from any mapped facility — subject to OSM
+- **Live app (all real OpenStreetMap facilities — ≈2,070 facilities / ≈1,290
+  places):** mean nearest facility **21.1 km**, median **15.9 km**; ≈**72%** of
+  population is within 5 km of a facility, while the farthest mapped town,
+  **Bétaré-Oya**, is **~115 km** from any mapped facility — subject to OSM
   coverage gaps (see limitations).
 - **Deployed app:** <https://mbongowo-dat-spatial04-leafmap-dashboardappstreamlit-app-mclndk.streamlit.app/>
 
@@ -157,6 +163,8 @@ The default is **real Cameroon data from OpenStreetMap** (≈700 health faciliti
   [ODbL](https://opendatacommons.org/licenses/odbl/). Curated Cameroon exports of
   the same data are on [HDX (HOTOSM)](https://data.humdata.org/dataset/hotosm_cmr_health_facilities)
   and [Healthsites.io](https://healthsites.io/map?country=Cameroon).
+- **Administrative boundaries** (10 regions, 60 divisions): [geoBoundaries](https://www.geoboundaries.org)
+  (Cameroon ADM1 / ADM2, open data), simplified for display.
 - **Basemap tiles:** OpenStreetMap / CARTO.
 
 ## Limitations
