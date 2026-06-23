@@ -7,12 +7,9 @@
 # eo-monitor is installed from this same public repo (the eo-monitor/ folder),
 # so the app uses one definition of the spectral indices instead of a copy.
 #
-# The git ref is pinned to a specific commit (not @main) on purpose: Streamlit
-# Community Cloud caches the git install, and a moving @main ref can leave an
-# older eo-monitor in place after the library gains new indices. Pinning a
-# commit makes the requirement string change whenever eo-monitor does, which
-# forces a clean reinstall. Bump this SHA when you want the app to pick up newer
-# eo-monitor changes.
+# eo-monitor tracks @main below. Streamlit Community Cloud caches the git
+# install, so if you change eo-monitor and the deployed app does not pick it up,
+# use Manage app -> Reboot (or Clear cache) to force a clean reinstall.
 
 streamlit>=1.32
 streamlit-folium>=0.20
@@ -28,4 +25,4 @@ numpy>=1.24
 matplotlib>=3.7
 dask>=2024.1
 
-eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@e499393f05446b87d8a3ce4701fbde5ab9eeed1f#subdirectory=spatial/eo-monitor
+eo-monitor @ git+https://github.com/mbongowo/Data-science-Portfolio.git@main#subdirectory=spatial/eo-monitor
