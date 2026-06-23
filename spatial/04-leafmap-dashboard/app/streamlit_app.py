@@ -57,8 +57,9 @@ st.set_page_config(
 )
 
 
-@st.cache_data(show_spinner=False)
 def _read_csv(data: bytes | str) -> pd.DataFrame:
+    # Not cached on purpose: the bundled CSVs are small, and a path-keyed
+    # st.cache_data would serve stale data after the bundled files are updated.
     return pd.read_csv(data)
 
 
