@@ -32,7 +32,7 @@ characters including any URL — re-check before scheduling.
 ## Spatial track
 
 ### eo-monitor — drought anomaly
-Status: scheduled (2026-06-29T09:00:00-05:00)
+Status: unused
 
 **Facts:** Sentinel-2 L2A z-score anomalies vs a 4-year baseline; 34 spectral indices (NDVI/NDWI/NDMI + 31), pure numpy; SCL cloud masking; COG + PNG output; validated on the 2023 Corn Belt flash drought; demo recovers a planted loss patch at 1.0 recall, max |z|=42.12.
 
@@ -50,7 +50,7 @@ Status: scheduled (2026-06-29T09:00:00-05:00)
 > github.com/mbongowo/Data-science-Portfolio
 
 ### access-to-care — clinic equity
-Status: scheduled (2026-07-01T09:00:00-05:00)
+Status: unused
 
 **Facts:** Multi-source Dijkstra travel time to nearest health facility over an OSM road network; WorldPop 100 m, Healthsites, GADM; population-weighted Gini; demo (Cameroon, 107,696 pop) 10% within 30 min, 35.1% within 60, 93.3% within 120, Gini 0.258; pure-python routing testable without a geo stack.
 
@@ -68,7 +68,7 @@ Status: scheduled (2026-07-01T09:00:00-05:00)
 > github.com/mbongowo/Data-science-Portfolio
 
 ### spatial-hotspots — does the statistic catch it?
-Status: scheduled (2026-07-03T09:00:00-05:00)
+Status: unused
 
 **Facts:** Moran's I, Geary's C, LISA, Getis-Ord Gi*; pure-numpy core with hand-derived known-answer tests (monotone path I=1/3, checkerboard I=-1); demo on 12×12 grid: Moran's I 0.7242, Geary's C 0.2392, LISA 48 HH / 37 LL, Gi* 16 hot / 16 cold; pysal/esda lazily imported for permutation inference; USDA NASS yield default data.
 
